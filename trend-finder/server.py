@@ -60,8 +60,10 @@ def _load_env(path: str) -> None:
                 continue
             key, _, val = line.partition("=")
             key, val = key.strip(), val.strip().strip('"').strip("'")
-            # don't clobber a real environment variable
-            os.environ.setdefault(key, val)
+            # don't clobber a real environment variable, but DO fill in empties
+            # (so a leftover `set GEMINI_API_KEY=` in the shell doesn't disable Gemini)
+            if not os.environ.get(key):
+                os.environ[key] = val
 
 
 _load_env(os.path.join(ROOT, ".env"))

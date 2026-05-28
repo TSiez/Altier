@@ -259,6 +259,8 @@
     <div class="col-head">
       <h2 id="resultsTitle">Trending Stories</h2>
       <span class="meta" id="resultsMeta"></span>
+      <button class="btn ghost sm" id="reportBtn" type="button" disabled
+              title="Download a dated markdown report of the surfaced trends + any ideas you extracted">Export Report ↓</button>
     </div>
     <div id="basket" class="basket-stage"></div>
     <div class="bulk-bar" id="bulkBar" role="region" aria-label="Bulk actions">
@@ -319,7 +321,7 @@
  * ===================================================================== */
 const FLASK_BASE = "http://localhost:5001";
 const SERVED = location.protocol.startsWith("http");
-const trendingURL = q => `${SERVED ? "" : FLASK_BASE}/api/trending?q=${encodeURIComponent(q)}`;
+const trendingURL = q => `${FLASK_BASE}/api/trending?q=${encodeURIComponent(q)}`;
 const extractURL  = u => SERVED ? `/api/extract?url=${encodeURIComponent(u)}`
                                 : `${FLASK_BASE}/api/extract?url=${encodeURIComponent(u)}`;
 const healthURL   = () => SERVED ? `/api/health` : `${FLASK_BASE}/api/health`;
@@ -654,7 +656,74 @@ function renderPanel(){
   $("previewBtn").disabled = !has;
   $("exportBtn").disabled = !has;
   $("clearBtn").disabled = !ideas.length;
+  refreshReportBtn();
 }
+
+/* ---------- Dated trends report (markdown export) ---------- */
+function refreshReportBtn(){
+  const btn = $("reportBtn");
+  if(btn) btn.disabled = !(results.length || ideas.length);
+}
+function buildReportMarkdown(){
+  const now = new Date();
+  const utc = now.toISOString().replace(/\.\d{3}Z$/, "Z");
+  const local = now.toString();
+  const q = lastQuery || "(no search yet)";
+  const pipe = s => String(s||"").replace(/\|/g,"¦").replace(/\r?\n/g," ");
+  const lines = [];
+  lines.push("# Trend Finder — Report");
+  lines.push("");
+  lines.push("| | |");
+  lines.push("|---|---|");
+  lines.push(`| **Generated (UTC)** | \`${utc}\` |`);
+  lines.push(`| **Local time**      | \`${local}\` |`);
+  lines.push(`| **Topic**           | \`${pipe(q)}\` |`);
+  lines.push(`| **Tool**            | Altier · Trend Finder |`);
+  lines.push(`| **Sources**         | Google News RSS · Reddit · Hacker News |`);
+  lines.push("");
+  lines.push(`## Trending stories (${results.length})`);
+  lines.push("");
+  if(!results.length){
+    lines.push("_no results — run a search first_");
+  }else{
+    lines.push("| # | Source | Title | Link |");
+    lines.push("|---|---|---|---|");
+    results.forEach((r,i) => {
+      const rank = String(r.rank ?? i+1).padStart(2,"0");
+      lines.push(`| ${rank} | ${pipe(r.source)} | ${pipe(r.title)} | [open](${r.link||"#"}) |`);
+    });
+  }
+  lines.push("");
+  lines.push(`## Extracted ideas (${ideas.length})`);
+  lines.push("");
+  if(!ideas.length){
+    lines.push("_no ideas extracted — use \"Extract Ideas\" or \"Browse & Pick\" on any story above_");
+  }else{
+    lines.push("| Keep? | Idea | Source | From article |");
+    lines.push("|---|---|---|---|");
+    ideas.forEach(it => {
+      const mark = it.checked ? "✓" : "—";
+      lines.push(`| ${mark} | ${pipe(it.idea)} | ${pipe(it.source)} | ${it.url ? `[${pipe(it.article)||"open"}](${it.url})` : pipe(it.article)} |`);
+    });
+  }
+  lines.push("");
+  lines.push("---");
+  lines.push(`_${results.length} stor${results.length===1?"y":"ies"} surfaced · ${ideas.length} idea${ideas.length===1?"":"s"} extracted · report timestamp \`${utc}\`_`);
+  lines.push("");
+  return { md: lines.join("\n"), filename: `trend-report_${utc.replace(/[-:]/g,"").replace("Z","Z")}.md` };
+}
+function downloadReport(){
+  const { md, filename } = buildReportMarkdown();
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`Report saved · ${filename}`);
+}
+$("reportBtn").addEventListener("click", downloadReport);
+
 $("ideaList").addEventListener("change", e => {
   const cb = e.target.closest("input[type=checkbox]");
   if(!cb) return;
