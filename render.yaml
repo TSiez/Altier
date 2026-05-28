@@ -57,3 +57,12 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-flash-latest
+      # Reddit OAuth — REQUIRED on Render. The anonymous .json endpoint
+      # returns 403 from cloud IPs. Create a "script" app at
+      # https://www.reddit.com/prefs/apps to get these.
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: REDDIT_USERNAME
+        sync: false

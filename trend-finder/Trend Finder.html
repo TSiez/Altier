@@ -270,6 +270,7 @@
     <div class="api-chip" id="apiChip" title="Backend status">
       <span class="dot"></span><span id="apiLbl">checking…</span>
       <span class="gem" id="gemLbl"></span>
+      <span class="gem" id="rdLbl"></span>
     </div>
   </div>
 </header>
@@ -404,9 +405,17 @@ async function ping(){
     const d = await r.json();
     chip.className = "api-chip ok"; $("apiLbl").textContent = "API ready";
     $("gemLbl").textContent = d.gemini ? "Gemini on" : "Gemini off · fallback";
+    // Reddit chip — OAuth on cloud hosts, public for local; blocked = 403 from this IP
+    const rd = d.reddit || {};
+    const lbl = (rd.configured === "oauth-ready")
+      ? "Reddit · OAuth"
+      : (rd.last_mode === "blocked" ? "Reddit blocked" : "Reddit · public");
+    $("rdLbl").textContent = lbl;
+    $("rdLbl").title = `configured: ${rd.configured || "?"} · last call: ${rd.last_mode || "?"}`;
   }catch{
     chip.className = "api-chip off"; $("apiLbl").textContent = "API offline";
     $("gemLbl").textContent = "run server.py";
+    $("rdLbl").textContent = "";
   }
 }
 

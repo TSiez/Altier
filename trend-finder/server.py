@@ -75,6 +75,22 @@ GEMINI_URL = (
     f"{GEMINI_MODEL}:generateContent"
 )
 
+# Reddit credentials.
+#
+# The anonymous www.reddit.com/search.json endpoint is reliably 403'd from
+# cloud-provider IPs (Render, Fly, Heroku, AWS, …) since mid-2023. The only
+# stable path is the OAuth API at oauth.reddit.com.
+#
+# To enable: create a "script" app at https://www.reddit.com/prefs/apps
+# (any redirect URI is fine — we use app-only / client_credentials auth),
+# then set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env / Render dash.
+# REDDIT_USERNAME is optional but Reddit's API rules ask for it inside the
+# User-Agent string; defaults to "altier" so the UA stays valid.
+REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID", "").strip()
+REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET", "").strip()
+REDDIT_USERNAME = os.environ.get("REDDIT_USERNAME", "altier").strip()
+REDDIT_USER_AGENT = f"web:altier-trend-finder:1.0 (by /u/{REDDIT_USERNAME})"
+
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
@@ -86,6 +102,12 @@ HEADERS = {
 }
 
 REQUEST_TIMEOUT = 12
+
+# Module-level cache for the Reddit OAuth bearer token. Tokens are valid for
+# ~1 hour; we refresh after 50 minutes to stay safely in window.
+_REDDIT_TOKEN = {"value": "", "exp": 0.0}
+# The last reddit fetch mode, surfaced in /api/health: oauth | public | blocked
+_REDDIT_LAST_MODE = "unknown"
 
 
 app = Flask(__name__, static_folder=None)
@@ -184,48 +206,120 @@ def src_google_news(q: str, limit: int = 6) -> list:
     return out
 
 
-def src_reddit(q: str, limit: int = 6) -> list:
-    """Reddit search JSON. Ranked by upvotes (sort=top, last month) so the
-    items pulled into the merged top-5 are the most-upvoted matches, not
-    just the most-relevant — and the score is preserved for the UI."""
-    out = []
+def _reddit_oauth_token() -> str:
+    """Fetch (or reuse a cached) Reddit OAuth bearer token via the
+    client_credentials grant. App-only — no user account needed for search."""
+    if not (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET):
+        return ""
+    if _REDDIT_TOKEN["value"] and _REDDIT_TOKEN["exp"] > time.time():
+        return _REDDIT_TOKEN["value"]
     try:
-        url = ("https://www.reddit.com/search.json?q="
-               + urllib.parse.quote(q)
-               + f"&sort=top&t=month&limit={limit*2}&raw_json=1")
-        resp = _get(url, headers={**HEADERS, "Accept": "application/json"})
+        resp = requests.post(
+            "https://www.reddit.com/api/v1/access_token",
+            auth=(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET),
+            data={"grant_type": "client_credentials"},
+            headers={"User-Agent": REDDIT_USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
         data = resp.json()
-        for child in data.get("data", {}).get("children", []):
-            d = child.get("data", {})
-            title = (d.get("title") or "").strip()
-            permalink = d.get("permalink")
-            if not title or not permalink:
-                continue
-            link = "https://www.reddit.com" + permalink
-            thumb = d.get("thumbnail") or ""
-            if thumb in ("self", "default", "nsfw", "spoiler", "image", ""):
-                # prefer a real preview image if present, else leave blank (letter tile)
-                try:
-                    thumb = (d["preview"]["images"][0]["source"]["url"]
-                             .replace("&amp;", "&"))
-                except Exception:
-                    thumb = ""
-            out.append({
-                "title": title,
-                "link": link,
-                "source": "r/" + (d.get("subreddit") or "reddit"),
-                "thumbnail": thumb,
-                "score": int(d.get("score") or 0),                 # upvote count
-                "comments": int(d.get("num_comments") or 0),
-            })
-            if len(out) >= limit:
-                break
-        # Defensive: ensure the bucket is already sorted by score descending
-        # (Reddit returns it that way under sort=top, but be explicit).
-        out.sort(key=lambda x: -x.get("score", 0))
+        token = (data.get("access_token") or "").strip()
+        ttl = int(data.get("expires_in") or 3600)
+        if token:
+            _REDDIT_TOKEN["value"] = token
+            # refresh ~10 min before Reddit expires it
+            _REDDIT_TOKEN["exp"] = time.time() + max(60, ttl - 600)
+            return token
     except Exception:
         traceback.print_exc()
+    return ""
+
+
+def _reddit_parse_listing(data: dict, limit: int) -> list:
+    """Shared parser for both public and OAuth Reddit search payloads."""
+    out = []
+    for child in data.get("data", {}).get("children", []):
+        d = child.get("data", {})
+        title = (d.get("title") or "").strip()
+        permalink = d.get("permalink")
+        if not title or not permalink:
+            continue
+        link = "https://www.reddit.com" + permalink
+        thumb = d.get("thumbnail") or ""
+        if thumb in ("self", "default", "nsfw", "spoiler", "image", ""):
+            try:
+                thumb = (d["preview"]["images"][0]["source"]["url"]
+                         .replace("&amp;", "&"))
+            except Exception:
+                thumb = ""
+        out.append({
+            "title": title,
+            "link": link,
+            "source": "r/" + (d.get("subreddit") or "reddit"),
+            "thumbnail": thumb,
+            "score": int(d.get("score") or 0),                 # upvote count
+            "comments": int(d.get("num_comments") or 0),
+        })
+        if len(out) >= limit:
+            break
+    out.sort(key=lambda x: -x.get("score", 0))
     return out
+
+
+def src_reddit(q: str, limit: int = 6) -> list:
+    """Reddit search, ranked by upvotes (sort=top, last month).
+
+    Tries OAuth (oauth.reddit.com) first when REDDIT_CLIENT_ID + SECRET are
+    set — this is the only path that works from cloud-provider IPs since
+    Reddit started 403'ing anonymous .json access in mid-2023. Falls back
+    to the public www.reddit.com endpoint for local dev / personal IPs."""
+    global _REDDIT_LAST_MODE
+    qs = urllib.parse.quote(q)
+    params_tail = f"&sort=top&t=month&limit={limit*2}&raw_json=1"
+
+    # 1) OAuth path — preferred on Render and other cloud hosts.
+    token = _reddit_oauth_token()
+    if token:
+        try:
+            resp = requests.get(
+                "https://oauth.reddit.com/search?q=" + qs + params_tail,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "User-Agent": REDDIT_USER_AGENT,
+                    "Accept": "application/json",
+                },
+                timeout=REQUEST_TIMEOUT,
+            )
+            if resp.status_code == 401:
+                # token went stale early — drop it and let the next call refetch
+                _REDDIT_TOKEN["value"] = ""
+                _REDDIT_TOKEN["exp"] = 0.0
+            else:
+                resp.raise_for_status()
+                _REDDIT_LAST_MODE = "oauth"
+                return _reddit_parse_listing(resp.json(), limit)
+        except Exception:
+            traceback.print_exc()
+
+    # 2) Public fallback — works from residential IPs, usually 403s on cloud.
+    try:
+        resp = _get(
+            "https://www.reddit.com/search.json?q=" + qs + params_tail,
+            headers={**HEADERS, "Accept": "application/json"},
+        )
+        if resp.status_code in (401, 403, 429):
+            _REDDIT_LAST_MODE = "blocked"
+            print(f"[reddit] public endpoint blocked: HTTP {resp.status_code}"
+                  + (" — set REDDIT_CLIENT_ID/SECRET to use OAuth"
+                     if not (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET) else ""))
+            return []
+        resp.raise_for_status()
+        _REDDIT_LAST_MODE = "public"
+        return _reddit_parse_listing(resp.json(), limit)
+    except Exception:
+        _REDDIT_LAST_MODE = "error"
+        traceback.print_exc()
+    return []
 
 
 def src_hackernews(q: str, limit: int = 6) -> list:
@@ -412,11 +506,19 @@ def fallback_extract(soup: BeautifulSoup, text: str) -> list:
 
 @app.route("/api/health")
 def api_health():
+    if REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET:
+        reddit_mode = "oauth-ready"
+    else:
+        reddit_mode = "public-only"
     return jsonify({
         "ok": True,
         "service": "trend-finder",
         "gemini": bool(GEMINI_API_KEY),
         "model": GEMINI_MODEL,
+        "reddit": {
+            "configured": reddit_mode,
+            "last_mode": _REDDIT_LAST_MODE,  # oauth | public | blocked | error
+        },
     })
 
 
@@ -548,5 +650,6 @@ if __name__ == "__main__":
     print("\n  Trend Finder backend (Flask) is up.")
     print(f"  API   : http://{host}:{port}/api/trending?q=ai+gadgets")
     print(f"  Gemini: {'configured (' + GEMINI_MODEL + ')' if GEMINI_API_KEY else 'NOT configured — extraction will use HTML fallback'}")
+    print(f"  Reddit: {'OAuth ready (oauth.reddit.com)' if REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET else 'public endpoint only — likely 403 on cloud hosts. set REDDIT_CLIENT_ID/SECRET to bypass'}")
     print("  Tip   : start the Node server too:  node serve.mjs\n")
     app.run(host=host, port=port, debug=False, threaded=True)
