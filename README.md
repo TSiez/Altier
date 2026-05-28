@@ -70,6 +70,25 @@ A two-process app:
 
 ---
 
+## Deploy to Render (one-click via Blueprint)
+
+A [`render.yaml`](render.yaml) at the repo root makes the Trend Finder one click away:
+
+1. Push this repo to GitHub.
+2. In Render, click **New + → Blueprint** and pick this repo. Render reads `render.yaml` and stages a single Web Service: **`altier-trend-finder`**, running Flask under gunicorn, serving both the static page and the API from the same origin.
+3. When prompted, paste your `GEMINI_API_KEY` (it's marked `sync: false` so it's set per-environment, never committed). `GEMINI_MODEL` defaults to `gemini-flash-latest`.
+4. Deploy. The first request after 15 min of idle on the **free** plan wakes the dyno (~30–60 s cold start) — change `plan: free` → `plan: starter` in `render.yaml` (or in the dashboard) for $7/mo and it stays warm 24/7.
+
+The blueprint sets:
+- `rootDir: trend-finder` so the build/run happens inside that folder
+- `buildCommand: pip install -r requirements.txt` (includes `gunicorn`)
+- `startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - server:app`
+- `healthCheckPath: /api/health` so Render knows the service is up
+
+The frontend (Concept Archive) is pure static and is happiest on Vercel (free, edge-CDN, no server). Drop `frontend/` into a Vercel project as static output and you're done.
+
+---
+
 ## Notes
 
 - `.env` files are gitignored — set the keys yourself per the steps above.

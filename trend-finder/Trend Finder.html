@@ -319,7 +319,7 @@
  * ===================================================================== */
 const FLASK_BASE = "http://localhost:5001";
 const SERVED = location.protocol.startsWith("http");
-const trendingURL = q => `${FLASK_BASE}/api/trending?q=${encodeURIComponent(q)}`;
+const trendingURL = q => `${SERVED ? "" : FLASK_BASE}/api/trending?q=${encodeURIComponent(q)}`;
 const extractURL  = u => SERVED ? `/api/extract?url=${encodeURIComponent(u)}`
                                 : `${FLASK_BASE}/api/extract?url=${encodeURIComponent(u)}`;
 const healthURL   = () => SERVED ? `/api/health` : `${FLASK_BASE}/api/health`;

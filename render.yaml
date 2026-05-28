@@ -1,0 +1,34 @@
+# Render Blueprint — one-click deploy for the Trend Finder.
+# https://render.com/docs/blueprint-spec
+#
+# What this builds:
+#   • A single Web Service that serves both the static page (Trend Finder.html
+#     + assets/) and the Flask API (/api/health, /api/trending, /api/extract,
+#     /img). One origin, no CORS dance.
+#
+# How to use it:
+#   1. Push this repo to GitHub.
+#   2. In Render, click "New +" → "Blueprint" → connect this repo.
+#   3. Render reads render.yaml, creates the service, prompts you for
+#      GEMINI_API_KEY, and starts the build.
+#   4. First request after 15 min idle wakes the free dyno (~30–60s cold
+#      start). Bump the plan to "starter" ($7/mo) to keep it warm 24/7.
+
+services:
+  - type: web
+    name: altier-trend-finder
+    runtime: python
+    plan: free                       # ← change to "starter" for always-on
+    region: oregon                   # ← change if you want a different region
+    rootDir: trend-finder            # repo path the build/start commands run inside
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - server:app
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: GEMINI_API_KEY          # set in Render dashboard (sync:false hides it)
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
