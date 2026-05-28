@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trend Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Pinyon+Script&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#efece5;             /* soft cream paper */
+    --paper-2:#e6ded2;
+    --card:#faf7f1;
+    --ink:#2c2722;               /* warm near-black */
+    --ink-2:#564c43;
+    --muted:#938a7d;
+    --accent:#d9805a;           /* dusty rose */
+    --accent-2:#9a586a;
+    --accent-soft:rgba(181,110,124,0.12);
+    --ok:#6f8a6a;
+    --warn-bg:#f6efe0;
+    --warn-bd:#d8bd84;
+    --warn-ink:#8a6d3a;
+    --border:rgba(44,39,34,0.14);
+    --border-2:rgba(44,39,34,0.26);
+    --serif:"Cormorant Garamond", Georgia, serif;
+    --display:"Playfair Display", Georgia, serif;
+    --script:"Pinyon Script", "Segoe Script", cursive;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:18px;
+    line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;position:relative;
+  }
+  body::before{ /* newsprint grain */
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  ::selection{background:var(--accent);color:var(--paper)}
+  a{color:inherit}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- masthead ---------- */
+  header.mast{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 86%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--accent)}
+  .mast-in{max-width:1240px;margin:0 auto;padding:12px 32px;display:flex;align-items:center;gap:20px}
+  .brand{font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:.01em;display:flex;align-items:baseline;gap:4px}
+  .brand .script{font-family:var(--script);color:var(--accent);font-size:1.55em;font-weight:400;line-height:.6;margin-left:4px}
+  .brand .edition{font-family:var(--serif);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:lowercase;font-style:italic;color:var(--accent);margin-left:10px;align-self:center}
+  .api-chip{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .api-chip .dot{width:8px;height:8px;border-radius:50%;background:#bbb;box-shadow:0 0 0 3px rgba(0,0,0,.04)}
+  .api-chip.ok .dot{background:var(--ok);box-shadow:0 0 6px rgba(63,125,78,.5)}
+  .api-chip.off .dot{background:var(--accent);box-shadow:0 0 6px rgba(192,57,43,.5)}
+  .api-chip .gem{padding-left:10px;border-left:1px solid var(--border)}
+
+  /* ---------- search ---------- */
+  .lead{max-width:1240px;margin:0 auto;padding:30px 32px 6px;position:relative;z-index:2}
+  /* bracketed tag — echoes the “version: books” frame in the reference */
+  .kicker{display:inline-block;position:relative;font-family:var(--serif);font-weight:600;
+    font-size:16px;letter-spacing:.04em;text-transform:lowercase;color:var(--accent);
+    padding:3px 16px;margin-bottom:14px}
+  .kicker::before,.kicker::after{content:"";position:absolute;top:0;bottom:0;width:7px;border:1.5px solid var(--accent)}
+  .kicker::before{left:0;border-right:none}
+  .kicker::after{right:0;border-left:none}
+  .headline{font-family:var(--display);font-size:clamp(40px,6vw,76px);font-weight:600;line-height:1.0;letter-spacing:-.01em;max-width:15ch}
+  .headline em{font-family:var(--script);font-style:normal;color:var(--accent);font-weight:400;font-size:1.15em}
+  .dek{font-size:20px;color:var(--ink-2);margin-top:16px;max-width:58ch}
+  form.search{display:flex;gap:10px;margin:24px 0 6px;max-width:760px}
+  .search input{flex:1;font-family:var(--serif);font-size:21px;padding:12px 18px;background:var(--card);
+    border:1.5px solid var(--border-2);border-radius:3px;color:var(--ink)}
+  .search input::placeholder{color:var(--muted);font-style:italic}
+  .search input:focus{outline:none;border-color:var(--accent)}
+  .btn{font-family:var(--serif);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+    border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);padding:0 24px;border-radius:3px;transition:.15s;white-space:nowrap}
+  .btn:hover{background:var(--accent);border-color:var(--accent)}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.ghost:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  .btn.sm{padding:7px 15px;font-size:12.5px;letter-spacing:.08em}
+  .btn:disabled{opacity:.4;cursor:default}
+  .hint{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--muted);letter-spacing:.01em}
+  .hint b{color:var(--accent);font-style:normal;font-weight:600}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1240px;margin:0 auto;padding:18px 32px 80px;position:relative;z-index:2;
+    display:grid;grid-template-columns:1fr 392px;gap:34px;align-items:start}
+  .col-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--accent);padding-bottom:8px;margin-bottom:20px}
+  .col-head h2{font-size:17px;font-family:var(--serif);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  .col-head .meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+  /* ---------- result cards ---------- */
+  /* ---------- basket of product covers ---------- */
+  .basket-stage{position:relative;width:100%;margin:0 auto 16px}
+  .basket-stage:empty{display:none}
+  .basket-img{display:block;width:100%;height:auto;pointer-events:none}
+  .covers{position:absolute;inset:0}
+  .cover{position:absolute;width:13%;aspect-ratio:4/5;background:#fbf8f2;border:1px solid var(--border);padding:4px;
+    box-shadow:0 6px 14px rgba(44,39,34,.18);transition:transform .2s,box-shadow .2s;cursor:pointer}
+  .cover img{width:100%;height:100%;object-fit:cover;display:block;background:var(--paper-2)}
+  .cover .ctag{position:absolute;top:-13px;left:-13px;width:30px;height:30px;border-radius:50%;background:var(--paper);
+    border:1.5px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;z-index:2}
+  .cover:hover{transform:translateY(-8px) rotate(0deg) scale(1.04)!important;box-shadow:0 14px 32px rgba(44,39,34,.26);z-index:30}
+
+  /* ---------- bulk selection bar ---------- */
+  .bulk-bar{display:none;align-items:center;gap:14px;padding:11px 14px;background:var(--card);
+    border:1.5px solid var(--accent);border-radius:3px;margin:0 0 10px;font-family:var(--serif);font-size:15px}
+  .bulk-bar.on{display:flex}
+  .bulk-bar .pill{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--paper);
+    background:var(--accent);padding:4px 10px;border-radius:999px}
+  .bulk-bar .lbl{font-style:italic;color:var(--ink-2)}
+  .bulk-bar .spacer{flex:1}
+
+  /* ---------- numbered index list ---------- */
+  .cards{display:flex;flex-direction:column;gap:0}
+  .card{position:relative;display:grid;grid-template-columns:44px 1fr;gap:16px;align-items:start;padding:16px 44px 16px 4px;border-top:1px solid var(--border);transition:background .15s}
+  .cards .card:first-child{border-top:none}
+  /* per-card checkbox in the top-right of each row */
+  .card .pick{position:absolute;top:18px;right:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;user-select:none}
+  .card .pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+  .card .pick .box{width:22px;height:22px;border:1.5px solid var(--border-2);background:var(--paper);border-radius:4px;
+    display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:transparent;transition:.15s}
+  .card .pick:hover .box{border-color:var(--accent)}
+  .card .pick input:checked + .box{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+  .card .pick input:checked + .box::after{content:"✓"}
+  .card.selected{background:var(--accent-soft)}
+  /* extracted state — small flag next to the source */
+  .card .extracted-flag{display:none;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ok);margin-left:8px;padding:2px 7px;border:1px solid var(--ok);border-radius:999px}
+  .card.extracted .extracted-flag{display:inline-block}
+  /* mirror selection on the basket covers above */
+  .cover.selected{outline:2px solid var(--accent);outline-offset:2px;z-index:20}
+  .cover.selected .ctag{background:var(--accent);color:var(--paper)}
+  /* small rose circle, like the 01–06 tags in the reference */
+  .card .rank{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);
+    font-family:var(--mono);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .card .thumb{width:92px;height:92px;border-radius:3px;object-fit:cover;background:var(--paper-2);border:1px solid var(--border)}
+  .card .thumb.ph{object-fit:cover;background:var(--paper-2)}
+  .card .body{min-width:0}
+  .card .src{font-family:var(--serif);font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:lowercase;font-style:italic;color:var(--accent);
+    display:inline-block;padding:1px 10px;margin-bottom:6px;position:relative}
+  .card .src::before,.card .src::after{content:"";position:absolute;top:1px;bottom:1px;width:4px;border:1.2px solid var(--accent)}
+  .card .src::before{left:0;border-right:none}
+  .card .src::after{right:0;border-left:none}
+  .card h3{font-family:var(--display);font-size:24px;font-weight:600;line-height:1.16;letter-spacing:0}
+  .card h3 a{text-decoration:none}
+  .card h3 a:hover{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+  .card .acts{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
+  .card .note{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:9px}
+  .card .note.ok{color:var(--ok)}
+  .card .note.warn{color:var(--warn-ink)}
+
+  /* redirect warning */
+  .redirect{margin-top:13px;background:var(--warn-bg);border:1px solid var(--warn-bd);border-left:4px solid var(--warn-bd);
+    border-radius:3px;padding:13px 14px;font-size:15px;color:var(--warn-ink)}
+  .redirect .r-top{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:7px}
+  .redirect p{color:var(--ink-2);font-size:14.5px;margin-bottom:10px}
+  .redirect .open{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;border-bottom:1.5px solid var(--accent)}
+  .redirect .paste{display:flex;gap:8px;margin-top:11px}
+  .redirect .paste input{flex:1;font-family:var(--mono);font-size:12px;padding:9px 11px;border:1.5px solid var(--warn-bd);border-radius:2px;background:#fff;color:var(--ink)}
+  .redirect .paste input:focus{outline:none;border-color:var(--accent)}
+
+  /* states */
+  .state{padding:50px 20px;text-align:center;color:var(--muted);border:1px dashed var(--border-2);border-radius:3px;background:var(--card)}
+  .state .big{font-size:22px;color:var(--ink-2);margin-bottom:6px;font-style:italic}
+  .spinner{width:26px;height:26px;border:2.5px solid var(--border-2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- right panel ---------- */
+  .panel{position:sticky;top:96px;background:var(--card);border:1px solid var(--ink);border-radius:3px;display:flex;flex-direction:column;max-height:calc(100vh - 120px)}
+  .panel .p-head{padding:16px 18px;border-bottom:1px solid var(--border)}
+  .panel .p-head h2{font-family:var(--serif);font-size:17px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px}
+  .panel .p-head .sub{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--muted);margin-top:3px}
+  .panel .p-list{overflow-y:auto;padding:8px 8px;flex:1;min-height:120px}
+  .idea{display:flex;gap:10px;padding:10px 10px;border-radius:2px;align-items:flex-start}
+  .idea:hover{background:var(--paper)}
+  .idea + .idea{border-top:1px solid var(--border)}
+  .idea input[type=checkbox]{margin-top:5px;width:15px;height:15px;accent-color:var(--accent);flex:none;cursor:pointer}
+  .idea .it{min-width:0}
+  .idea .it .t{font-size:17px;line-height:1.25}
+  .idea.off .it .t{color:var(--muted);text-decoration:line-through}
+  .idea .it .m{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em;margin-top:3px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .panel .p-empty{padding:34px 18px;text-align:center;color:var(--muted);font-style:italic;font-size:16px}
+  .panel .p-foot{padding:12px;border-top:1px solid var(--border);display:flex;gap:9px}
+  .panel .p-foot .btn{flex:1;text-align:center;padding:11px 8px}
+
+  /* ---------- modal ---------- */
+  .overlay{position:fixed;inset:0;z-index:60;background:rgba(26,24,21,.5);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:24px}
+  .overlay.on{display:flex}
+  .modal{background:var(--paper);border:2px solid var(--ink);border-radius:4px;width:min(680px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:10px 10px 0 rgba(26,24,21,.18)}
+  .modal .m-head{padding:18px 22px;border-bottom:1px solid var(--ink);display:flex;align-items:flex-start;gap:14px}
+  .modal .m-head .mh-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .modal .m-head h3{font-family:var(--display);font-size:27px;font-weight:600;line-height:1.12;margin-top:5px}
+  .modal .m-head .x{margin-left:auto;flex:none;font-family:var(--mono);font-size:18px;cursor:pointer;background:none;border:none;color:var(--muted);line-height:1}
+  .modal .m-head .x:hover{color:var(--accent)}
+  .modal .m-body{padding:14px 22px;overflow-y:auto;flex:1}
+  .modal .m-foot{padding:14px 22px;border-top:1px solid var(--ink);display:flex;align-items:center;gap:10px}
+  .modal .m-foot .sel-info{font-family:var(--mono);font-size:11px;color:var(--muted);margin-right:auto}
+  .pick{display:flex;gap:11px;padding:11px 6px;align-items:flex-start}
+  .pick + .pick{border-top:1px solid var(--border)}
+  .pick input{margin-top:5px;width:16px;height:16px;accent-color:var(--accent);flex:none;cursor:pointer}
+  .pick .t{font-size:18px;line-height:1.3}
+  .pick .rk{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700;flex:none;min-width:24px;margin-top:3px}
+  table.preview{width:100%;border-collapse:collapse;font-size:16px}
+  table.preview th{font-family:var(--serif);font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);text-align:left;border-bottom:1.5px solid var(--accent);padding:8px 8px}
+  table.preview td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+  table.preview td.n{font-family:var(--mono);color:var(--accent);font-weight:700;width:34px}
+  table.preview td.s{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);z-index:80;
+    background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;letter-spacing:.04em;
+    padding:11px 18px;border-radius:3px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .panel{position:static;max-height:none}
+    .panel .p-list{max-height:50vh}
+  }
+  @media(max-width:620px){
+    /* the fanned basket needs width — drop to the numbered list on small screens */
+    .basket-stage{display:none}
+  }
+  @media(max-width:560px){
+    .mast-in,.lead,.wrap{padding-left:18px;padding-right:18px}
+    .card{grid-template-columns:36px 1fr;gap:12px}
+    .search{flex-direction:column}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-in">
+    <div class="brand">Trend<span class="script">Finder</span><span class="edition">daily edition</span></div>
+    <div class="api-chip" id="apiChip" title="Backend status">
+      <span class="dot"></span><span id="apiLbl">checking…</span>
+      <span class="gem" id="gemLbl"></span>
+    </div>
+  </div>
+</header>
+
+<section class="lead">
+  <div class="kicker">Search · Extract · Export</div>
+  <h1 class="headline">What's <em>trending</em>, and the ideas inside it.</h1>
+  <p class="dek">Search Google News, Reddit and Hacker News at once. Then let Gemini read each article and pull out the real ranked list of ideas — ready to check off and export.</p>
+  <form class="search" id="searchForm" autocomplete="off">
+    <input id="q" type="text" placeholder="Try: best ai gadgets, side hustles, camping gear…" aria-label="Search topic">
+    <button class="btn" id="searchBtn" type="submit">Search</button>
+  </form>
+  <div class="hint">Top 5 results across three sources · then <b>Extract Ideas</b> or <b>Browse &amp; Pick</b> on any story.</div>
+</section>
+
+<main class="wrap">
+  <!-- LEFT: results -->
+  <section>
+    <div class="col-head">
+      <h2 id="resultsTitle">Trending Stories</h2>
+      <span class="meta" id="resultsMeta"></span>
+    </div>
+    <div id="basket" class="basket-stage"></div>
+    <div class="bulk-bar" id="bulkBar" role="region" aria-label="Bulk actions">
+      <span class="pill"><b id="bulkCount">0</b> selected</span>
+      <span class="lbl">Ready to extract from the chosen stories</span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="bulkExtract" type="button">Extract from selected</button>
+      <button class="btn ghost sm" id="bulkClear" type="button">Clear</button>
+    </div>
+    <div class="cards" id="cards">
+      <div class="state"><div class="big">No search yet</div>Type a topic above to fill the basket with the day's trending stories.</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: selected ideas -->
+  <aside>
+    <div class="panel">
+      <div class="p-head">
+        <h2>Selected Ideas</h2>
+        <div class="sub" id="panelSub">Nothing extracted yet</div>
+      </div>
+      <div class="p-list" id="ideaList">
+        <div class="p-empty">Extract ideas from a story and they'll collect here as a checklist.</div>
+      </div>
+      <div class="p-foot">
+        <button class="btn ghost sm" id="previewBtn" disabled>Preview</button>
+        <button class="btn sm" id="exportBtn" disabled>Export CSV</button>
+        <button class="btn ghost sm" id="clearBtn" disabled title="Remove all">✕</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- modal -->
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="m-head">
+      <div>
+        <div class="mh-k" id="mKicker">Browse &amp; Pick</div>
+        <h3 id="mTitle">Article</h3>
+      </div>
+      <button class="x" id="mClose" aria-label="Close">✕</button>
+    </div>
+    <div class="m-body" id="mBody"></div>
+    <div class="m-foot" id="mFoot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================== *
+ *  Config — frontend talks to:                                          *
+ *    • Flask  :5001  directly for /api/trending  (per spec)             *
+ *    • Node   :3002  (same origin) for /api/extract + /api/health + /img *
+ *      so the Gemini-backed extract is proxied and the key stays server *
+ *      side. When opened as a bare file:// we fall back to Flask direct. *
+ * ===================================================================== */
+const FLASK_BASE = "http://localhost:5001";
+const SERVED = location.protocol.startsWith("http");
+const trendingURL = q => `${FLASK_BASE}/api/trending?q=${encodeURIComponent(q)}`;
+const extractURL  = u => SERVED ? `/api/extract?url=${encodeURIComponent(u)}`
+                                : `${FLASK_BASE}/api/extract?url=${encodeURIComponent(u)}`;
+const healthURL   = () => SERVED ? `/api/health` : `${FLASK_BASE}/api/health`;
+// Always route thumbnails through Flask's /img proxy — same-origin when served,
+// absolute when on file:// — so hotlink-blocked source URLs never reach the browser.
+const imgURL      = u => !u ? "" : (SERVED ? `/img?url=${encodeURIComponent(u)}` : `${FLASK_BASE}/img?url=${encodeURIComponent(u)}`);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+
+/* letter-tile fallback for thumbnails that fail (no extra network request) */
+function letterTile(name){
+  const L = (String(name||"").replace(/[^A-Za-z0-9]/g,"").slice(0,1) || "#").toUpperCase();
+  // use raw '#' here — encodeURIComponent below does the (single) encoding
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='92' height='92'><rect width='100%' height='100%' fill='#e7e4d9'/><text x='50%' y='52%' dy='.35em' text-anchor='middle' font-family='Georgia,serif' font-weight='600' font-size='44' fill='#c0392b'>${esc(L)}</text></svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+window.imgFail = el => { el.onerror = null; el.classList.add("ph"); el.src = letterTile(el.dataset.srcName); };
+
+let results = [];      // current trending cards
+let ideas = [];        // collected {id, idea, source, article, url, checked}
+let nextId = 1;
+let lastQuery = "";     // the most recent search topic (used in headings)
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+/* ---------- health ---------- */
+async function ping(){
+  const chip = $("apiChip");
+  try{
+    const r = await fetch(healthURL(), { cache:"no-store" });
+    const d = await r.json();
+    chip.className = "api-chip ok"; $("apiLbl").textContent = "API ready";
+    $("gemLbl").textContent = d.gemini ? "Gemini on" : "Gemini off · fallback";
+  }catch{
+    chip.className = "api-chip off"; $("apiLbl").textContent = "API offline";
+    $("gemLbl").textContent = "run server.py";
+  }
+}
+
+/* ---------- search ---------- */
+$("searchForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  if(!q) return;
+  const btn = $("searchBtn"); btn.disabled = true; btn.textContent = "…";
+  $("cards").innerHTML = `<div class="state"><div class="spinner"></div>Pulling trending stories for “${esc(q)}”…</div>`;
+  $("resultsMeta").textContent = "";
+  try{
+    const r = await fetch(trendingURL(q));
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    results = d.results || [];
+    lastQuery = q;
+    $("resultsTitle").textContent = `Trending · ${q}`;
+    renderCards();
+    renderPanel();
+    $("resultsMeta").textContent = `${d.count} results · ${d.duration_ms}ms`;
+  }catch(err){
+    $("cards").innerHTML = `<div class="state"><div class="big">Couldn't reach the API</div>${esc(err.message)}.<br>Make sure <b>python server.py</b> is running on :5001.</div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = "Search";
+  }
+});
+
+/* ---------- render cards ---------- */
+/* pink wire basket (generated via kie.ai); white bg blends to cream via multiply */
+const BASKET_IMG = `<img class="basket-img" src="assets/basket-wire.png" alt="" aria-hidden="true">`;
+
+function renderCards(){
+  if(!results.length){
+    $("basket").innerHTML = "";
+    $("cards").innerHTML = `<div class="state"><div class="big">No stories found</div>Try a broader topic.</div>`;
+    return;
+  }
+  // --- basket: top 5 as product "covers" resting on the grid, with numbered tags ---
+  const pos = [{l:27,t:40,r:-8},{l:37,t:31,r:5},{l:45,t:44,r:-3},{l:54,t:31,r:7},{l:62,t:40,r:-6}];
+  $("basket").innerHTML = BASKET_IMG + `<div class="covers">${
+    results.map((it,i)=>{
+      const p = pos[i] || {l:24+i*9,t:32,r:0};
+      const src = it.thumbnail ? esc(imgURL(it.thumbnail)) : letterTile(it.source);
+      return `<figure class="cover" data-i="${i}" title="${esc(it.title)}" style="left:${p.l}%;top:${p.t}%;transform:rotate(${p.r}deg)">
+        <span class="ctag">${String(it.rank).padStart(2,"0")}</span>
+        <img alt="" data-src-name="${esc(it.source)}" src="${src}" onerror="imgFail(this)">
+      </figure>`;
+    }).join("")
+  }</div>`;
+
+  // --- numbered index list (titles + actions), like the reference caption ---
+  $("cards").innerHTML = results.map((it, i) => `
+    <article class="card${it.extracted ? " extracted" : ""}${it.selected ? " selected" : ""}" data-i="${i}">
+      <label class="pick" title="Select for bulk extraction">
+        <input type="checkbox" data-pick="${i}"${it.selected ? " checked" : ""}>
+        <span class="box" aria-hidden="true"></span>
+      </label>
+      <div class="rank">${String(it.rank).padStart(2,"0")}</div>
+      <div class="body">
+        <span class="src">${esc(it.source)}</span><span class="extracted-flag" title="Ideas already pulled from this story">✓ extracted</span>
+        <h3><a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
+        <div class="acts">
+          <button class="btn sm" data-act="extract" data-i="${i}">Extract Ideas</button>
+          <button class="btn ghost sm" data-act="browse" data-i="${i}">Browse &amp; Pick</button>
+        </div>
+        <div class="note" id="note-${i}"></div>
+        <div id="rd-${i}"></div>
+      </div>
+    </article>`).join("");
+  updateBulkBar();
+}
+
+/* ---------- selection state ---------- */
+function selectedIndices(){ return results.map((r,i)=>r.selected?i:-1).filter(i=>i>=0); }
+function updateBulkBar(){
+  const n = selectedIndices().length;
+  const bar = $("bulkBar");
+  $("bulkCount").textContent = n;
+  bar.classList.toggle("on", n > 0);
+  $("bulkExtract").disabled = n === 0;
+}
+function setSelected(i, on){
+  if(!results[i]) return;
+  results[i].selected = !!on;
+  const card = document.querySelector(`.card[data-i="${i}"]`);
+  const cover = document.querySelector(`.cover[data-i="${i}"]`);
+  if(card)  card.classList.toggle("selected", !!on);
+  if(cover) cover.classList.toggle("selected", !!on);
+  const cb = document.querySelector(`input[data-pick="${i}"]`);
+  if(cb) cb.checked = !!on;
+  updateBulkBar();
+}
+
+/* checkbox change (delegated) — also handles clicking the rose label/box */
+$("cards").addEventListener("change", e => {
+  const cb = e.target.closest("input[data-pick]");
+  if(!cb) return;
+  setSelected(+cb.dataset.pick, cb.checked);
+});
+
+/* Bulk-bar buttons */
+$("bulkClear").addEventListener("click", () => selectedIndices().forEach(i => setSelected(i, false)));
+$("bulkExtract").addEventListener("click", async () => {
+  const idxs = selectedIndices();
+  if(!idxs.length) return;
+  const btn = $("bulkExtract"); btn.disabled = true; const orig = btn.textContent;
+  for(let k = 0; k < idxs.length; k++){
+    const i = idxs[k];
+    btn.textContent = `Extracting ${k+1}/${idxs.length}…`;
+    await doExtract(i, null);  // sequential; doExtract handles its own UI
+  }
+  btn.textContent = orig;
+  selectedIndices().forEach(i => setSelected(i, false));
+  toast(`Bulk extract complete · ${idxs.length} stor${idxs.length===1?"y":"ies"}`);
+});
+
+/* ---------- card actions (delegated) ---------- */
+$("cards").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]");
+  if(!b) return;
+  const i = +b.dataset.i;
+  if(b.dataset.act === "extract") doExtract(i, b);
+  if(b.dataset.act === "browse")  openBrowse(i);
+});
+
+/* click a basket cover -> open that "product" (the article) */
+$("basket").addEventListener("click", e => {
+  const f = e.target.closest(".cover");
+  if(!f) return;
+  const it = results[+f.dataset.i];
+  if(it && it.link && it.link !== "#") window.open(it.link, "_blank", "noopener");
+});
+
+/* ---------- Extract Ideas -> right panel ---------- */
+async function doExtract(i, btn, overrideUrl){
+  const card = results[i];
+  const url = overrideUrl || card.link;
+  const note = $("note-" + i);
+  if(btn){ btn.disabled = true; btn.textContent = "Extracting…"; }
+  note.className = "note"; note.textContent = "";
+  try{
+    const data = await fetchExtract(url);
+    if(data.needs_redirect){ renderRedirect("rd-" + i, data, finalUrl => doExtract(i, null, finalUrl)); return; }
+    const via = data.method === "gemini" ? "Gemini" : "HTML fallback";
+    if(!data.items || !data.items.length){
+      note.className = "note warn";
+      note.textContent = "No ranked list found in this article — try “Browse & Pick”, or open it and paste the final URL.";
+      return;
+    }
+    const added = addIdeas(data.items, card.source, data.title || card.title, data.url || url);
+    $("rd-" + i).innerHTML = "";
+    // mark the story as extracted so the card shows a persistent ✓
+    results[i].extracted = true;
+    document.querySelector(`.card[data-i="${i}"]`)?.classList.add("extracted");
+    if(added === 0){
+      note.className = "note"; note.textContent = `Already added · ${data.items.length} idea${data.items.length!==1?"s":""} from this story`;
+    }else{
+      note.className = "note ok"; note.textContent = `+${added} idea${added!==1?"s":""} added · via ${via}`;
+      toast(`Added ${added} idea${added!==1?"s":""}`);
+    }
+  }catch(err){
+    note.className = "note"; note.textContent = "⚠ " + err.message;
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = "Extract Ideas"; }
+  }
+}
+
+/* ---------- Browse & Pick -> modal checklist ---------- */
+async function openBrowse(i){
+  const card = results[i];
+  openModal("Browse &amp; Pick", card.title);
+  $("mBody").innerHTML = `<div class="state" style="border:none;background:none"><div class="spinner"></div>Reading the article &amp; extracting every idea…</div>`;
+  $("mFoot").innerHTML = "";
+  await loadPicker(card, card.link);
+}
+
+async function loadPicker(card, url){
+  try{
+    const data = await fetchExtract(url);
+    if(data.needs_redirect){
+      $("mBody").innerHTML = redirectHTML(data);
+      wireRedirect($("mBody"), finalUrl => loadPicker(card, finalUrl));
+      $("mFoot").innerHTML = `<span class="sel-info">Waiting for the real article URL…</span><button class="btn ghost sm" data-close>Cancel</button>`;
+      $("mFoot").querySelector("[data-close]").onclick = closeModal;
+      return;
+    }
+    $("mTitle").innerHTML = esc(data.title || card.title);
+    const its = data.items || [];
+    if(!its.length){ $("mBody").innerHTML = `<div class="state">No clear list of ideas found in this article.</div>`; }
+    else{
+      $("mBody").innerHTML = its.map((it, k) => `
+        <label class="pick">
+          <input type="checkbox" checked data-k="${k}">
+          <span class="rk">${it.rank ?? k+1}.</span>
+          <span class="t">${esc(it.idea)}</span>
+        </label>`).join("");
+    }
+    const via = data.method === "gemini" ? "Gemini" : "HTML fallback";
+    $("mFoot").innerHTML =
+      `<span class="sel-info">${its.length} found · via ${via}</span>
+       <button class="btn ghost sm" data-close>Cancel</button>
+       <button class="btn sm" id="addSel">Add selected</button>`;
+    $("mFoot").querySelector("[data-close]").onclick = closeModal;
+    const addBtn = $("addSel");
+    if(addBtn){
+      if(!its.length) addBtn.disabled = true;
+      addBtn.onclick = () => {
+        const picked = [...$("mBody").querySelectorAll("input:checked")].map(c => its[+c.dataset.k]);
+        const n = addIdeas(picked, card.source, data.title || card.title, data.url || url);
+        closeModal(); toast(`Added ${n} idea${n!==1?"s":""}`);
+      };
+    }
+  }catch(err){
+    $("mBody").innerHTML = `<div class="state">⚠ ${esc(err.message)}</div>`;
+    $("mFoot").innerHTML = `<button class="btn ghost sm" data-close>Close</button>`;
+    $("mFoot").querySelector("[data-close]").onclick = closeModal;
+  }
+}
+
+/* ---------- extract fetch ---------- */
+async function fetchExtract(url){
+  const r = await fetch(extractURL(url));
+  const d = await r.json().catch(() => ({ error: "bad response" }));
+  if(d.error) throw new Error(d.error);
+  return d;
+}
+
+/* ---------- Google News redirect UI ---------- */
+function redirectHTML(data){
+  return `<div class="redirect">
+    <div class="r-top">⚠ Google News redirect</div>
+    <p>${esc(data.message || "Open this link in your browser, let it land on the real article, then paste that final URL below.")}</p>
+    <a class="open" href="${esc(data.open_url)}" target="_blank" rel="noopener">Open article ↗</a>
+    <div class="paste">
+      <input type="text" placeholder="Paste the final article URL here…" data-paste>
+      <button class="btn sm" data-go>Fetch</button>
+    </div>
+  </div>`;
+}
+function renderRedirect(containerId, data, cb){
+  const el = $(containerId); el.innerHTML = redirectHTML(data); wireRedirect(el, cb);
+}
+function wireRedirect(scope, cb){
+  const input = scope.querySelector("[data-paste]");
+  const go = scope.querySelector("[data-go]");
+  const fire = () => {
+    const v = (input.value || "").trim();
+    if(!/^https?:\/\//.test(v)){ input.focus(); toast("Paste a full http(s) URL"); return; }
+    cb(v);
+  };
+  go.onclick = fire;
+  input.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); fire(); }});
+  input.focus();
+}
+
+/* ---------- ideas store + right panel ---------- */
+function addIdeas(items, source, article, url){
+  let added = 0;
+  (items || []).forEach(it => {
+    const text = (typeof it === "string" ? it : it.idea || "").trim();
+    if(!text) return;
+    if(ideas.some(x => x.idea.toLowerCase() === text.toLowerCase() && x.url === url)) return;
+    ideas.push({ id: nextId++, idea: text, source, article, url, checked: true });
+    added++;
+  });
+  renderPanel();
+  return added;
+}
+function renderPanel(){
+  const list = $("ideaList");
+  if(!ideas.length){
+    list.innerHTML = `<div class="p-empty">Extract ideas from a story and they'll collect here as a checklist.</div>`;
+  }else{
+    list.innerHTML = ideas.map(x => `
+      <label class="idea ${x.checked ? "" : "off"}" data-id="${x.id}">
+        <input type="checkbox" ${x.checked ? "checked" : ""} data-id="${x.id}">
+        <span class="it">
+          <span class="t">${esc(x.idea)}</span>
+          <span class="m">${esc(x.source)} · ${esc(x.article)}</span>
+        </span>
+      </label>`).join("");
+  }
+  const checked = ideas.filter(x => x.checked).length;
+  $("panelSub").textContent = ideas.length
+    ? `${lastQuery ? "“" + lastQuery + "” · " : ""}${checked} of ${ideas.length} selected to keep`
+    : (lastQuery ? `“${lastQuery}” · nothing extracted yet` : "Nothing extracted yet");
+  const has = checked > 0;
+  $("previewBtn").disabled = !has;
+  $("exportBtn").disabled = !has;
+  $("clearBtn").disabled = !ideas.length;
+}
+$("ideaList").addEventListener("change", e => {
+  const cb = e.target.closest("input[type=checkbox]");
+  if(!cb) return;
+  const item = ideas.find(x => x.id === +cb.dataset.id);
+  if(item){ item.checked = cb.checked; renderPanel(); }
+});
+$("clearBtn").onclick = () => { ideas = []; renderPanel(); toast("Cleared"); };
+
+/* ---------- Preview ---------- */
+$("previewBtn").onclick = () => {
+  const rows = ideas.filter(x => x.checked);
+  openModal("Preview", lastQuery ? `Selected ideas — “${lastQuery}”` : "Selected ideas to export");
+  $("mBody").innerHTML = `<table class="preview"><thead><tr><th>#</th><th>Idea</th><th>Source</th></tr></thead><tbody>${
+    rows.map((x, i) => `<tr><td class="n">${i+1}</td><td>${esc(x.idea)}<div class="m mono" style="font-size:10px;color:var(--muted);margin-top:2px">${esc(x.article)}</div></td><td class="s">${esc(x.source)}</td></tr>`).join("")
+  }</tbody></table>`;
+  $("mFoot").innerHTML = `<span class="sel-info">${rows.length} rows</span><button class="btn ghost sm" data-close>Close</button><button class="btn sm" id="dl">Export CSV</button>`;
+  $("mFoot").querySelector("[data-close]").onclick = closeModal;
+  $("dl").onclick = () => { exportCSV(); };
+};
+
+/* ---------- Export CSV ---------- */
+$("exportBtn").onclick = exportCSV;
+function exportCSV(){
+  const rows = ideas.filter(x => x.checked);
+  if(!rows.length) return;
+  const topic = lastQuery || $("q").value.trim();
+  const q = (topic || "ideas").replace(/[^\w-]+/g, "_").slice(0, 40);
+  const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const header = ["Topic", "Rank", "Idea", "Source", "Article", "URL"];
+  const lines = [header.map(cell).join(",")];
+  rows.forEach((x, i) => lines.push([topic, i+1, x.idea, x.source, x.article, x.url].map(cell).join(",")));
+  // BOM + CRLF so Excel / Sheets open it cleanly
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `trend-finder_${q}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`Exported ${rows.length} rows`);
+}
+
+/* ---------- modal helpers ---------- */
+function openModal(kicker, title){
+  $("mKicker").innerHTML = kicker; $("mTitle").innerHTML = esc(title);
+  $("overlay").classList.add("on");
+}
+function closeModal(){ $("overlay").classList.remove("on"); }
+$("mClose").onclick = closeModal;
+$("overlay").addEventListener("click", e => { if(e.target === $("overlay")) closeModal(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+
+/* ---------- go ---------- */
+ping();
+renderPanel();
+</script>
+</body>
+</html>

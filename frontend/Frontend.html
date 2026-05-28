@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Concept Archive — AI Design Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Caveat:wght@400;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141210;
+    --bg-2:#1c1814;
+    --paper:#f3ede1;
+    --paper-2:#e9e1d2;
+    --ink:#f3ede1;          /* light type on dark */
+    --ink-dark:#1a1612;     /* dark type on paper */
+    --muted:#8c8275;
+    --muted-2:#a59a89;
+    --accent:#d9805a;       /* ribbon orange */
+    --accent-2:#e3899f;     /* envelope pink */
+    --border:rgba(243,237,225,0.14);
+    --border-strong:rgba(243,237,225,0.28);
+    --serif:"Cormorant Garamond", "Times New Roman", serif;
+    --hand:"Caveat", cursive;
+    --sans:"Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:400;line-height:1.55;-webkit-font-smoothing:antialiased}
+  body{
+    min-height:100vh;
+    background-image:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(217,128,90,0.06), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 100% 100%, rgba(227,137,159,0.05), transparent 60%);
+    background-attachment:fixed;
+  }
+  ::selection{background:var(--accent);color:var(--bg)}
+  a{color:inherit}
+
+  /* ---------- top bar ---------- */
+  header.bar{
+    padding:20px 36px;display:flex;align-items:center;gap:28px;
+    border-bottom:1px solid var(--border);position:relative;z-index:6;
+  }
+  .mark{font-family:var(--serif);font-style:italic;font-size:24px;font-weight:500;letter-spacing:0.01em;color:var(--ink)}
+  .mark .dot{color:var(--accent)}
+  nav.tabs{display:flex;gap:26px;margin-left:18px}
+  nav.tabs a{
+    color:var(--muted-2);text-decoration:none;
+    font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;
+    padding:4px 0;border-bottom:1px solid transparent;transition:.2s;
+  }
+  nav.tabs a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+  nav.tabs a.active{color:var(--ink);border-bottom-color:var(--ink)}
+  .bar-right{margin-left:auto;display:flex;gap:14px;align-items:center}
+  .bar-status{
+    font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:7px;
+  }
+  .bar-status .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+  .bar-status.busy .dot{animation:pulse 1.4s infinite}
+  .bar-status.err .dot{background:#e25b4b;box-shadow:0 0 6px #e25b4b}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .icon-btn{
+    background:transparent;border:1px solid var(--border-strong);
+    padding:7px 14px;font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--muted-2);cursor:pointer;transition:.2s;border-radius:2px;
+  }
+  .icon-btn:hover{background:var(--paper);color:var(--ink-dark);border-color:var(--paper)}
+
+  /* ---------- hero collage ---------- */
+  section.hero{
+    position:relative;max-width:1280px;margin:0 auto;padding:24px 36px 0;
+  }
+  .collage-wrap{position:relative;border-radius:6px;overflow:hidden}
+  .collage-wrap img{display:block;width:100%;height:auto;object-fit:cover}
+  .collage-overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;pointer-events:none;
+  }
+  h1.hero-title{
+    font-family:var(--serif);font-weight:500;color:#fff;
+    font-size:clamp(56px,11vw,148px);line-height:0.86;letter-spacing:0.005em;
+    text-shadow:0 2px 30px rgba(0,0,0,0.45);
+  }
+  h1.hero-title .it{font-style:italic;display:block}
+  .hero-corner-tag{
+    position:absolute;top:18px;left:18px;
+    font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.8);
+    background:rgba(20,18,16,0.5);padding:6px 10px;border-radius:2px;backdrop-filter:blur(3px);
+  }
+  .hero-corner-tag::before{content:"❋ "}
+
+  /* trend finder sticker button — pinned over the collage */
+  .trend-sticker{
+    position:absolute;bottom:20px;right:20px;pointer-events:auto;
+    display:inline-flex;align-items:center;gap:10px;text-decoration:none;
+    background:var(--accent);color:#1a1612;
+    font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:0.01em;
+    padding:13px 20px;border-radius:999px;
+    box-shadow:0 8px 24px rgba(217,128,90,0.4);transition:.2s;transform:rotate(-2deg);
+  }
+  .trend-sticker:hover{transform:rotate(0deg) translateY(-2px);box-shadow:0 12px 30px rgba(217,128,90,0.5)}
+  .trend-sticker .arr{font-size:15px}
+
+  .hero-strip{
+    display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;
+    padding:18px 4px 0;font-family:var(--serif);font-size:17px;font-style:italic;color:var(--muted-2);
+  }
+  .hero-strip .nav-row{display:flex;gap:24px;font-style:normal;font-size:14px;letter-spacing:0.16em;text-transform:uppercase}
+
+  /* ---------- brief section ---------- */
+  section.brief{
+    max-width:1280px;margin:0 auto;padding:72px 36px 56px;
+    display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:start;
+    border-bottom:1px solid var(--border);
+  }
+  .brief-intro .kicker{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+  .brief-intro h2{font-family:var(--serif);font-weight:500;font-size:clamp(48px,6vw,84px);line-height:0.92;letter-spacing:0.005em;margin-bottom:22px}
+  .brief-intro h2 .it{font-style:italic}
+  .brief-intro p{font-family:var(--serif);font-size:19px;line-height:1.5;color:var(--muted-2);max-width:420px;margin-bottom:18px}
+  .brief-intro .meta-list{display:flex;flex-direction:column;gap:10px;margin-top:28px;border-top:1px solid var(--border);padding-top:20px}
+  .brief-intro .meta-row{display:flex;align-items:baseline;gap:14px}
+  .brief-intro .meta-row .n{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;color:var(--accent);min-width:24px}
+  .brief-intro .meta-row .t{font-family:var(--serif);font-size:20px;font-style:italic}
+  .brief-intro .meta-row .d{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:auto}
+
+  /* the form, styled as a cream paper card */
+  .brief-card{
+    background:var(--paper);color:var(--ink-dark);
+    border-radius:3px;padding:32px 32px 28px;
+    box-shadow:0 18px 50px rgba(0,0,0,0.4);
+    position:relative;transform:rotate(0.5deg);
+    display:flex;flex-direction:column;gap:18px;
+  }
+  .brief-card::before{
+    content:"";position:absolute;top:-12px;left:50%;transform:translateX(-50%) rotate(-3deg);
+    width:120px;height:26px;background:rgba(217,128,90,0.45);
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);border-radius:1px;
+  }
+  .brief-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid rgba(26,22,18,0.16);padding-bottom:14px}
+  .brief-head .title{font-family:var(--serif);font-weight:600;font-size:26px;letter-spacing:0.01em}
+  .brief-head .count{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#8a7d6c}
+  .brief-desc{font-family:var(--serif);font-size:17px;line-height:1.45;color:#5c5347;font-style:italic;margin-top:-4px}
+
+  .field{display:flex;flex-direction:column;gap:7px}
+  .field label{
+    font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7d6c;
+    display:flex;align-items:center;gap:8px;
+  }
+  .field label .num{color:var(--accent);font-weight:500}
+  .field input, .field textarea{
+    background:#fbf7ef;border:1px solid rgba(26,22,18,0.18);
+    color:var(--ink-dark);font-family:var(--sans);font-size:14px;
+    padding:12px 13px;border-radius:3px;outline:none;transition:.15s;resize:vertical;line-height:1.45;
+  }
+  .field input::placeholder, .field textarea::placeholder{color:#a89c89;font-style:italic}
+  .field input:focus, .field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(217,128,90,0.18)}
+  .field textarea{min-height:60px}
+
+  .cta-stack{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+  button.cta{
+    background:var(--ink-dark);color:var(--paper);
+    border:0;padding:15px 20px;cursor:pointer;border-radius:3px;
+    font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:0.02em;
+    transition:.2s;display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  button.cta:hover:not(:disabled){background:var(--accent);color:var(--ink-dark)}
+  button.cta:disabled{opacity:.5;cursor:not-allowed}
+  button.cta .plus{font-family:var(--sans);font-size:16px}
+  button.cta.busy .plus{animation:spin 1s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  button.cta-ghost{
+    background:transparent;color:#5c5347;
+    border:1px solid rgba(26,22,18,0.2);padding:11px 14px;cursor:pointer;border-radius:3px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;transition:.15s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  button.cta-ghost:hover{color:var(--ink-dark);border-color:var(--ink-dark)}
+  button.cta-ghost.ok{color:#3a6b3a;border-color:#3a6b3a}
+  button.cta-ghost.err{color:#b5402f;border-color:#b5402f}
+
+  /* ---------- console ---------- */
+  section.console-wrap{padding:24px 36px 0;max-width:1280px;margin:0 auto}
+  .console{
+    border:1px solid var(--border);background:var(--bg-2);border-radius:4px;
+    padding:14px 18px;font-family:var(--mono);font-size:11.5px;color:var(--muted-2);
+    max-height:200px;overflow-y:auto;display:none;
+  }
+  .console.active{display:block}
+  .console .line{margin-bottom:3px;line-height:1.5}
+  .console .line .t{color:var(--muted);margin-right:10px}
+  .console .line.ok .s{color:#7fb87f}
+  .console .line.err .s{color:#e58a7a}
+  .console .line.info .s{color:var(--accent)}
+
+  /* ---------- results ---------- */
+  section.results{padding:64px 36px 56px;max-width:1280px;margin:0 auto}
+  .results-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:44px;gap:24px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:20px}
+  .results-head h2{font-family:var(--serif);font-weight:500;font-size:clamp(44px,6vw,80px);line-height:0.9;letter-spacing:0.005em}
+  .results-head h2 .it{font-style:italic}
+  .results-head .meta{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;color:var(--muted);text-align:right}
+  .results-head .meta .row{margin-bottom:4px}
+  .results-head .meta .row span{color:var(--ink)}
+
+  .category-block{margin-bottom:64px}
+  .cat-head{display:flex;align-items:baseline;gap:18px;margin-bottom:32px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+  .cat-head .num{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;color:var(--accent)}
+  .cat-head h3{font-family:var(--serif);font-weight:500;font-size:40px;letter-spacing:0.01em;line-height:1}
+  .cat-head .blurb{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--muted-2);margin-left:auto;max-width:400px;text-align:right;line-height:1.35}
+
+  .concepts{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .concept{
+    background:transparent;padding:0;transition:.3s;
+  }
+  .concept-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:12px}
+  .concept-head .idx{font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;color:var(--accent)}
+  .concept-head .cat{font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+  .concept h4{font-family:var(--serif);font-weight:500;font-size:32px;line-height:1.05;letter-spacing:0.01em;margin-bottom:8px}
+  .concept .desc{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--muted-2);margin-bottom:22px;line-height:1.4}
+
+  /* polaroid frames for the plates */
+  .imgs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:18px}
+  .img-slot{
+    background:var(--paper);padding:10px 10px 38px;border-radius:2px;
+    box-shadow:0 14px 34px rgba(0,0,0,0.42);position:relative;
+    transition:transform .25s ease;
+  }
+  .concept:nth-child(odd) .img-slot:first-child{transform:rotate(-1.5deg)}
+  .concept:nth-child(odd) .img-slot:last-child{transform:rotate(1.2deg)}
+  .concept:nth-child(even) .img-slot:first-child{transform:rotate(1.4deg)}
+  .concept:nth-child(even) .img-slot:last-child{transform:rotate(-1.1deg)}
+  .img-slot:hover{transform:rotate(0deg) scale(1.02);z-index:3}
+  .img-slot .frame{
+    aspect-ratio:16/9;background:var(--bg-2);position:relative;overflow:hidden;border-radius:1px;
+  }
+  .img-slot img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .4s;cursor:zoom-in}
+  .img-slot img.loaded{opacity:1}
+  .img-slot .face{
+    position:absolute;bottom:10px;left:0;right:0;text-align:center;
+    font-family:var(--hand);font-size:19px;color:#3a322a;
+  }
+  .img-slot .state{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);
+    text-align:center;padding:14px;
+  }
+  .img-slot .spinner{width:22px;height:22px;border:1.5px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+  .img-slot.queued .state::before{content:"queued"}
+  .img-slot.working .state{flex-direction:column;gap:9px}
+  .img-slot.working .state::after{content:attr(data-msg)}
+  .img-slot.err .frame{background:#2a1a16}
+  .img-slot.err .state{color:#e58a7a;flex-direction:column;gap:6px}
+  .img-slot.err .state::before{content:"× error"}
+  .img-slot.err .state .why{font-size:9px;letter-spacing:0.06em;opacity:.85;text-transform:none;max-width:180px}
+
+  .prompts{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-top:16px;border-top:1px solid var(--border)}
+  .prompt-block{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--muted-2)}
+  .prompt-block .pl{font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+  .prompt-block .pt{max-height:80px;overflow-y:auto;padding-right:6px}
+  .prompt-block .pt::-webkit-scrollbar{width:3px}
+  .prompt-block .pt::-webkit-scrollbar-thumb{background:var(--border-strong)}
+
+  /* ---------- history ---------- */
+  section.history{padding:40px 36px 64px;max-width:1280px;margin:0 auto;border-top:1px solid var(--border)}
+  .history-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;gap:16px}
+  .history-head h2{font-family:var(--serif);font-weight:500;font-size:40px;letter-spacing:0.01em}
+  .history-head h2 .it{font-style:italic}
+  .history-head .count{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+  .history-list{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .history-row{
+    background:var(--bg);padding:16px 22px;display:grid;
+    grid-template-columns:96px 1fr auto auto;gap:18px;align-items:center;
+    cursor:pointer;transition:.15s;
+  }
+  .history-row:hover{background:var(--bg-2)}
+  .history-row.active{background:var(--paper);color:var(--ink-dark)}
+  .history-row .when{font-family:var(--mono);font-size:11px;letter-spacing:0.06em;color:var(--muted);line-height:1.35}
+  .history-row.active .when{color:#8a7d6c}
+  .history-row .idea{font-family:var(--serif);font-size:21px;font-style:italic;line-height:1.2}
+  .history-row .label{font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+  .history-row.active .label{color:#8a7d6c}
+  .history-row .del{
+    background:transparent;border:1px solid var(--border-strong);padding:5px 11px;border-radius:999px;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted-2);cursor:pointer;
+  }
+  .history-row .del:hover{background:#b5402f;color:var(--paper);border-color:#b5402f}
+  .history-row.active .del{border-color:rgba(26,22,18,0.3);color:var(--ink-dark)}
+  .empty{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--muted);padding:28px 0;text-align:center;background:var(--bg)}
+
+  /* ---------- lightbox ---------- */
+  .lightbox{position:fixed;inset:0;background:rgba(10,9,8,0.95);z-index:100;display:none;align-items:center;justify-content:center;padding:48px;cursor:zoom-out;backdrop-filter:blur(5px)}
+  .lightbox.open{display:flex;animation:lbfade .25s ease}
+  @keyframes lbfade{from{opacity:0}to{opacity:1}}
+  .lightbox img{max-width:100%;max-height:100%;object-fit:contain;background:var(--paper);padding:14px 14px 44px;border-radius:2px;box-shadow:0 30px 80px rgba(0,0,0,0.6)}
+  .lightbox .lb-meta{position:absolute;top:26px;left:34px;font-family:var(--hand);font-size:22px;color:var(--paper);display:flex;gap:14px;align-items:center}
+  .lightbox .lb-close{position:absolute;top:26px;right:34px;color:var(--paper);font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;border:1px solid var(--border-strong);padding:7px 14px;background:transparent;cursor:pointer;border-radius:999px}
+  .lightbox .lb-close:hover{background:var(--paper);color:var(--ink-dark)}
+  .lightbox .lb-link{position:absolute;bottom:26px;right:34px;color:var(--muted-2);font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;border:1px solid var(--border-strong);padding:7px 14px;border-radius:999px}
+  .lightbox .lb-link:hover{color:var(--paper);border-color:var(--paper)}
+
+  /* ---------- footer ---------- */
+  footer.foot{
+    padding:36px;border-top:1px solid var(--border);max-width:1280px;margin:0 auto;
+    display:flex;justify-content:space-between;align-items:baseline;gap:18px;flex-wrap:wrap;
+    font-family:var(--serif);font-size:16px;font-style:italic;color:var(--muted);
+  }
+  footer.foot .codes{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:0.16em;text-transform:uppercase}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:980px){
+    section.brief{grid-template-columns:1fr;gap:36px}
+    .concepts{grid-template-columns:1fr}
+    .cat-head{flex-wrap:wrap}
+    .cat-head .blurb{margin-left:0;text-align:left}
+    .history-row{grid-template-columns:1fr;gap:6px}
+    h1.hero-title{font-size:clamp(44px,13vw,96px)}
+  }
+  @media (max-width:560px){
+    header.bar{padding:16px 20px;flex-wrap:wrap;gap:12px}
+    nav.tabs{margin-left:0;gap:16px}
+    section.hero, section.brief, section.results, section.history, section.console-wrap, footer.foot{padding-left:20px;padding-right:20px}
+    .imgs{grid-template-columns:1fr}
+  }
+
+  /* ---------- reveal ---------- */
+  .reveal{opacity:0;transform:translateY(14px);animation:reveal .9s cubic-bezier(.2,.7,.2,1) forwards}
+  .r-1{animation-delay:.05s}.r-2{animation-delay:.15s}.r-3{animation-delay:.25s}.r-4{animation-delay:.35s}
+  @keyframes reveal{to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="mark">Atelier<span class="dot">.</span></span>
+  <nav class="tabs">
+    <a href="./Frontend.html" class="active">Generator</a>
+    <a href="./Demo.html">Demo</a>
+    <a href="../trend-finder/Trend%20Finder.html">Trend Finder</a>
+  </nav>
+  <div class="bar-right">
+    <span class="bar-status" id="status-pill"><span class="dot"></span><span class="lbl">Ready</span></span>
+    <button class="icon-btn" id="export-btn" title="Export current session as standalone .html">Export ↓</button>
+    <button class="icon-btn" id="clear-btn" title="Clear all sessions">Clear</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="collage-wrap reveal r-1">
+    <img src="./assets/hero-collage.png" alt="A scrapbook collage of analog objects on a dark surface">
+    <span class="hero-corner-tag">Atelier · AI Design Generator</span>
+    <div class="collage-overlay">
+      <h1 class="hero-title">Concept<span class="it">Archive</span></h1>
+    </div>
+    <a class="trend-sticker" href="../trend-finder/Trend%20Finder.html">
+      <span>Explore Trend Finder</span><span class="arr">↗</span>
+    </a>
+  </div>
+  <div class="hero-strip reveal r-2">
+    <span>Six homepage concepts from one brief — kept like keepsakes.</span>
+    <span class="nav-row">The Brief · The Concepts · The Archive</span>
+  </div>
+</section>
+
+<section class="brief">
+  <div class="brief-intro reveal r-2">
+    <div class="kicker">The Brief</div>
+    <h2>Compose<br>a <span class="it">brief.</span></h2>
+    <p>Hand Atelier a one-line idea, a mood, and the sections you want. It expands the brief into six homepage concepts across three style directions, then renders each as a front-and-back plate you can keep.</p>
+    <div class="meta-list">
+      <div class="meta-row"><span class="n">01</span><span class="t">Minimalist</span><span class="d">whitespace-forward, restrained</span></div>
+      <div class="meta-row"><span class="n">02</span><span class="t">Contemporary</span><span class="d">modern, expressive, professional</span></div>
+      <div class="meta-row"><span class="n">03</span><span class="t">Dynamic</span><span class="d">high contrast, bold, striking</span></div>
+    </div>
+  </div>
+
+  <div class="reveal r-3">
+    <form class="brief-card" id="gen-form">
+      <div class="brief-head">
+        <span class="title">Design Brief</span>
+        <span class="count">6 concepts · 12 plates</span>
+      </div>
+      <p class="brief-desc">Describe your website — we'll render six concepts as plates.</p>
+
+      <div class="field">
+        <label><span class="num">01</span>Website Concept</label>
+        <input id="f-idea" name="idea" placeholder="e.g. A heritage tea house for night owls" required>
+      </div>
+      <div class="field">
+        <label><span class="num">02</span>Visual Theme</label>
+        <input id="f-theme" name="theme" placeholder="e.g. lunar, hushed, ceremonial" required>
+      </div>
+      <div class="field">
+        <label><span class="num">03</span>Key Sections</label>
+        <textarea id="f-sections" name="sections" placeholder="e.g. Hero, Catalogue, Journal, Stockists, Contact" required rows="2"></textarea>
+      </div>
+
+      <div class="cta-stack">
+        <button class="cta" id="gen-btn" type="submit">
+          <span class="plus">+</span>
+          <span class="lbl">Generate Concepts</span>
+        </button>
+        <button class="cta-ghost" id="test-btn" type="button">
+          <span class="lbl">Test API Connection</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="console-wrap">
+  <div class="console" id="console"></div>
+</section>
+
+<section class="results" id="results-section" style="display:none">
+  <div class="results-head">
+    <h2>The <span class="it">Concepts.</span></h2>
+    <div class="meta" id="results-meta"></div>
+  </div>
+
+  <div class="category-block" data-cat="Minimalist">
+    <div class="cat-head">
+      <span class="num">01 / 03</span>
+      <h3>Minimalist</h3>
+      <span class="blurb">Whitespace-forward, restrained palette.</span>
+    </div>
+    <div class="concepts" data-slot="Minimalist"></div>
+  </div>
+
+  <div class="category-block" data-cat="Contemporary">
+    <div class="cat-head">
+      <span class="num">02 / 03</span>
+      <h3>Contemporary</h3>
+      <span class="blurb">Modern, expressive, professional.</span>
+    </div>
+    <div class="concepts" data-slot="Contemporary"></div>
+  </div>
+
+  <div class="category-block" data-cat="Dynamic">
+    <div class="cat-head">
+      <span class="num">03 / 03</span>
+      <h3>Dynamic</h3>
+      <span class="blurb">High contrast, bold typography.</span>
+    </div>
+    <div class="concepts" data-slot="Dynamic"></div>
+  </div>
+</section>
+
+<section class="history">
+  <div class="history-head">
+    <h2>The <span class="it">Archive</span></h2>
+    <span class="count" id="hist-count">0 sessions</span>
+  </div>
+  <div id="hist-list" class="history-list"></div>
+</section>
+
+<footer class="foot">
+  <span>Kept like keepsakes — every brief, pinned locally.</span>
+  <span class="codes">kie.ai · nano-banana · 16:9 plates</span>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-hidden="true">
+  <div class="lb-meta"><span class="name" id="lb-name"></span><span id="lb-face"></span></div>
+  <button class="lb-close" type="button" id="lb-close">esc · close</button>
+  <img id="lb-img" alt="">
+  <a class="lb-link" id="lb-link" target="_blank" rel="noopener">open full ↗</a>
+</div>
+
+<script>
+/* =========================================================================
+   CONCEPT ARCHIVE — AI Design Generator
+   Pipeline: prompts (client-templated) → kie.ai createTask → poll recordInfo
+   Storage:  localStorage [atelier.sessions, atelier.current]
+   ========================================================================= */
+
+const KIE_ENDPOINT = "https://api.kie.ai/api/v1/jobs/createTask";
+const KIE_POLL     = "https://api.kie.ai/api/v1/jobs/recordInfo";
+const KIE_MODEL    = "google/nano-banana";
+// Paste your own kie.ai API key here before running. It is never sent
+// anywhere except api.kie.ai (the image-generation endpoint).
+const DEFAULT_KEY  = "";
+const STORAGE_KEY  = "atelier.sessions";
+const CURRENT_KEY  = "atelier.current";
+
+const POLL_INTERVAL_MS  = 4000;
+const POLL_MAX_TRIES    = 45;
+const DISPATCH_STAGGER_MS = 1500;
+
+const CONCEPT_BLUEPRINTS = [
+  { category:"Minimalist",   name:"Quiet Folio",     description:"An editorial broadsheet — vast paper, one massive serif headline, restrained ornament.",            style:"minimalist-folio" },
+  { category:"Minimalist",   name:"Single Object",   description:"One hero image, dead center, oceans of air. Type is small, technical. Color is whisper.",            style:"minimalist-object" },
+  { category:"Contemporary", name:"Soft Grid",       description:"Confident editorial grid — rotating cards, calm sans, painterly sage and clay accents.",             style:"contemporary-grid" },
+  { category:"Contemporary", name:"Warm Studio",     description:"Warm neutrals, mixed serif/sans, photography on tinted plinths, soft shadows, modern but human.",    style:"contemporary-warm" },
+  { category:"Dynamic",      name:"Marquee Brutal",  description:"Oversize industrial type, black and acid yellow, hard shadows, imagery cropped without apology.",    style:"dynamic-brutal" },
+  { category:"Dynamic",      name:"Acid Glow",       description:"Saturated gradient washes, glossy crops, oversize italic display serif, neon punctuation.",          style:"dynamic-acid" },
+];
+
+function buildPrompt(blueprint, inputs, face) {
+  const { idea, theme, sections } = inputs;
+  const sectionList = sections.split(/\s*,\s*/).filter(Boolean).slice(0, 8);
+  const navList     = sectionList.slice(0, 5).join(" · ");
+  const firstSection = sectionList[0] || "Hero";
+  const tail = " The image must look like a high-fidelity desktop browser screenshot of a real website homepage - not a moodboard, not abstract collage, not a single product photograph. Show a navigation bar, page header, hero composition with typography at realistic web sizes, and crisp clean edges. Render at full 16:9 desktop browser viewport. No watermarks, no garbled text, no people.";
+
+  const FRONT = "homepage hero (above-the-fold)";
+  const BACK  = "inner content section below the fold";
+  const view  = face === "front" ? FRONT : BACK;
+  const ideaPhrase  = `for an online site called "${idea}"`;
+  const themePhrase = `theme: ${theme}`;
+  const navPhrase   = `top navigation contains the sections: ${navList}`;
+  const sectionsPhrase = `the page covers these sections: ${sectionList.join(", ")}`;
+
+  const STYLES = {
+    "minimalist-folio": {
+      front: `Editorial broadsheet ${FRONT} ${ideaPhrase}. ${themePhrase}. Massive Didone or transitional serif headline taking 70 percent of viewport width, ultra tight tracking, large left margin. ${navPhrase}, rendered as tiny tracked-out caps along the top. 90 percent whitespace. One small editorial photograph right-aligned. Off-white paper background, deep ink type, single brass accent rule.`,
+      back:  `Inner editorial page of the same site ${ideaPhrase}, dedicated to the "${firstSection}" section. Long-form column of justified serif body text on left, vertical index list with tiny serial numbers on right. Page footer with small caps. Paper white, ink black, brass rule lines.`,
+    },
+    "minimalist-object": {
+      front: `Minimalist ${FRONT} ${ideaPhrase}. ${themePhrase}. One single editorial photograph hero floating dead-center on oceans of pale stone-white space. Tiny mono caps wordmark top-left. ${navPhrase}, rendered as a single thin line of small tracked-out caps below the wordmark. Two-word headline below the photograph in restrained sans. No decoration.`,
+      back:  `Inner "${firstSection}" page of the same minimalist site ${ideaPhrase}. A sparse 4 by 2 grid of editorial photographs on stone-white background, each labeled with a 2-line caption in tiny restrained sans. Generous gutters, no card outlines.`,
+    },
+    "contemporary-grid": {
+      front: `Contemporary ${FRONT} ${ideaPhrase}. ${themePhrase}. ${sectionsPhrase}. Confident editorial grid: large serif display headline left, rotating gallery of three editorial cards on right with rounded corners and soft shadows, calm sans body copy. ${navPhrase}, rendered as a clear modern top navigation bar. Painterly accent color blocks in muted sage and clay.`,
+      back:  `Inner "${firstSection}" page of the same contemporary site. Three-column feature grid with photos on top and short headings plus body text below. Mixed serif headings and clean sans body. Tasteful accent color used sparingly.`,
+    },
+    "contemporary-warm": {
+      front: `Contemporary ${FRONT} ${ideaPhrase}. ${themePhrase}. ${sectionsPhrase}. Warm neutral palette (terracotta, putty, cream). Serif italic display headline with sans body. Hero editorial photograph on a tinted plinth with soft natural shadow. ${navPhrase}, rendered as small caps with a tiny terracotta accent dot. Modern but human, like a high-end concept store.`,
+      back:  `Inner "${firstSection}" page of the same warm contemporary site. Editorial story layout: a single large photograph left, a stacked column of three small thumbnails with hand-written-style labels right. Terracotta and putty palette.`,
+    },
+    "dynamic-brutal": {
+      front: `Dynamic brutalist ${FRONT} ${ideaPhrase}. ${themePhrase}. Oversize industrial sans-serif headline spans full viewport edge to edge, cropped against the gutter. Black background, paper-white type, single acid yellow accent. A hard-edged photograph bleeds into the headline. ${navPhrase}, rendered as small monospace all-caps across the top. Hard shadows. No rounded corners.`,
+      back:  `Inner "${firstSection}" page of the same brutalist site. Massive marquee headline running across. Six-item grid with hard edges, no shadows, monospace captions. Black background, paper-white type, single saturated accent.`,
+    },
+    "dynamic-acid": {
+      front: `Dynamic ${FRONT} ${ideaPhrase}. ${themePhrase}. Saturated gradient wash background (magenta to electric blue or chartreuse to violet). Oversize italic display serif headline overlaid, semi-transparent. A glossy editorial photograph crop cuts diagonally across the screen. ${navPhrase}, rendered as small monospace top-right. Neon punctuation. Asymmetric layout with overlap.`,
+      back:  `Inner "${firstSection}" page of the same acid-glow site. Full-bleed gradient continues. Three features stacked in alternating left-right layout with oversized italic numerals, glassy cutouts, and small all-caps labels.`,
+    },
+  };
+
+  const detail = (STYLES[blueprint.style] || {})[face] || `${view} ${ideaPhrase}. ${themePhrase}. ${sectionsPhrase}. ${blueprint.description}`;
+  return detail + tail;
+}
+
+function loadSessions(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+function saveSessions(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+function getCurrentId(){ return localStorage.getItem(CURRENT_KEY); }
+function setCurrentId(id){ localStorage.setItem(CURRENT_KEY, id); }
+function upsertSession(session){
+  const arr = loadSessions();
+  const idx = arr.findIndex(s => s.id === session.id);
+  if (idx >= 0) arr[idx] = session;
+  else arr.unshift(session);
+  saveSessions(arr);
+}
+
+async function kieCreateTask(prompt, apiKey){
+  const resp = await fetch(KIE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: KIE_MODEL, input: { prompt, output_format: "png", image_size: "16:9" } }),
+  });
+  const data = await resp.json().catch(()=>({}));
+  if (!resp.ok || data.code !== 200) throw new Error(data.msg || data.message || `createTask HTTP ${resp.status}`);
+  if (!data.data?.taskId) throw new Error("createTask returned no taskId");
+  return data.data.taskId;
+}
+
+async function kiePollTask(taskId, apiKey){
+  for (let i = 0; i < POLL_MAX_TRIES; i++) {
+    await sleep(POLL_INTERVAL_MS);
+    const resp = await fetch(`${KIE_POLL}?taskId=${encodeURIComponent(taskId)}`, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+    });
+    const data = await resp.json().catch(()=>({}));
+    if (!resp.ok) continue;
+    const state = data.data?.state;
+    if (state === "success" || state === "succeeded") {
+      let result = data.data?.resultJson;
+      try { if (typeof result === "string") result = JSON.parse(result); } catch {}
+      const url = result?.resultUrls?.[0] || result?.url || null;
+      if (!url) throw new Error("success but no result URL");
+      return url;
+    }
+    if (state === "fail" || state === "failed") throw new Error(data.data?.failMsg || "kie.ai task failed");
+  }
+  throw new Error("timed out polling kie.ai");
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const consoleEl = document.getElementById("console");
+function logLine(msg, cls = ""){
+  consoleEl.classList.add("active");
+  const t = new Date().toLocaleTimeString([], {hour12:false});
+  const line = document.createElement("div");
+  line.className = `line ${cls}`;
+  line.innerHTML = `<span class="t">${t}<\/span><span class="s">${escapeHtml(msg)}<\/span>`;
+  consoleEl.appendChild(line);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+function clearConsole(){ consoleEl.innerHTML = ""; consoleEl.classList.remove("active"); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function setStatus(state, label){
+  const pill = document.getElementById("status-pill");
+  pill.classList.remove("busy","err");
+  if (state === "busy") pill.classList.add("busy");
+  if (state === "err")  pill.classList.add("err");
+  pill.querySelector(".lbl").textContent = label;
+}
+
+function buildSession(inputs){
+  const id = String(Date.now());
+  return {
+    id,
+    createdAt: new Date().toISOString(),
+    inputs: { ...inputs },
+    concepts: CONCEPT_BLUEPRINTS.map((bp, i) => ({
+      id: `${id}-${i}`,
+      category: bp.category, name: bp.name, description: bp.description, style: bp.style,
+      frontPrompt: buildPrompt(bp, inputs, "front"),
+      backPrompt:  buildPrompt(bp, inputs, "back"),
+      frontUrl: null, backUrl: null,
+      frontStatus: "queued", backStatus: "queued",
+      frontError: null, backError: null,
+    })),
+  };
+}
+
+function renderSession(session, opts = {}){
+  document.getElementById("results-section").style.display = "block";
+  const meta = document.getElementById("results-meta");
+  const d = new Date(session.createdAt);
+  meta.innerHTML = `
+    <div class="row">Concept · <span>${escapeHtml(session.inputs.idea)}<\/span><\/div>
+    <div class="row">Theme · <span>${escapeHtml(session.inputs.theme)}<\/span><\/div>
+    <div class="row">Generated · <span>${d.toLocaleString()}<\/span><\/div>
+  `;
+  ["Minimalist","Contemporary","Dynamic"].forEach(cat => {
+    const slot = document.querySelector(`.concepts[data-slot="${cat}"]`);
+    slot.innerHTML = "";
+    session.concepts.filter(c => c.category === cat).forEach((c, i) => slot.appendChild(renderConcept(c, i + 1)));
+  });
+  if (!opts.skipScroll) document.getElementById("results-section").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function renderConcept(c, idx){
+  const el = document.createElement("div");
+  el.className = "concept";
+  el.dataset.conceptId = c.id;
+  el.innerHTML = `
+    <div class="concept-head">
+      <span class="idx">0${idx} · plate<\/span>
+      <span class="cat">${escapeHtml(c.category)}<\/span>
+    <\/div>
+    <h4>${escapeHtml(c.name)}<\/h4>
+    <div class="desc">${escapeHtml(c.description)}<\/div>
+    <div class="imgs">${imgSlotHtml(c,"front")}${imgSlotHtml(c,"back")}<\/div>
+    <div class="prompts">
+      <div class="prompt-block"><div class="pl">Front prompt<\/div><div class="pt">${escapeHtml(c.frontPrompt)}<\/div><\/div>
+      <div class="prompt-block"><div class="pl">Back prompt<\/div><div class="pt">${escapeHtml(c.backPrompt)}<\/div><\/div>
+    <\/div>
+  `;
+  return el;
+}
+
+function imgSlotHtml(c, face){
+  const url = face === "front" ? c.frontUrl : c.backUrl;
+  const status = face === "front" ? c.frontStatus : c.backStatus;
+  const err = face === "front" ? c.frontError : c.backError;
+  const faceLabel = face === "front" ? "front · hero" : "back · inner";
+  const cls = url ? "done" : status;
+  let inner = "";
+  if (url) {
+    inner = `<img src="${escapeHtml(url)}" alt="${escapeHtml(c.name)} ${face}" onload="this.classList.add('loaded')">`;
+  } else if (status === "err") {
+    inner = `<div class="state"><span class="why">${escapeHtml(err||"unknown")}<\/span><\/div>`;
+  } else if (status === "working" || status === "polling") {
+    inner = `<div class="state" data-msg="${escapeHtml(status === "polling" ? "polling…" : "rendering…")}"><div class="spinner"><\/div><\/div>`;
+  } else {
+    inner = `<div class="state"><\/div>`;
+  }
+  return `<div class="img-slot ${cls}" data-concept="${c.id}" data-face="${face}"><div class="frame">${inner}<\/div><span class="face">${faceLabel}<\/span><\/div>`;
+}
+
+function patchFace(c, face, p){
+  if (face === "front") {
+    if ("status" in p)  c.frontStatus = p.status;
+    if ("url" in p)     c.frontUrl    = p.url;
+    if ("error" in p)   c.frontError  = p.error;
+  } else {
+    if ("status" in p)  c.backStatus  = p.status;
+    if ("url" in p)     c.backUrl     = p.url;
+    if ("error" in p)   c.backError   = p.error;
+  }
+}
+
+function renderSlotFromSession(session, conceptId, face){
+  const c = session.concepts.find(x => x.id === conceptId);
+  if (!c) return;
+  const slot = document.querySelector(`.img-slot[data-concept="${conceptId}"][data-face="${face}"]`);
+  if (!slot) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = imgSlotHtml(c, face);
+  slot.replaceWith(wrap.firstElementChild);
+}
+
+async function generateImage(session, c, face, apiKey){
+  const prompt = face === "front" ? c.frontPrompt : c.backPrompt;
+  patchFace(c, face, { status: "working" });
+  renderSlotFromSession(session, c.id, face);
+  upsertSession(session);
+  try {
+    logLine(`[${c.name} · ${face}] createTask…`);
+    const taskId = await kieCreateTask(prompt, apiKey);
+    logLine(`[${c.name} · ${face}] task ${taskId.slice(0,8)} polling`, "info");
+    patchFace(c, face, { status: "polling" });
+    renderSlotFromSession(session, c.id, face);
+    const url = await kiePollTask(taskId, apiKey);
+    patchFace(c, face, { status: "done", url });
+    renderSlotFromSession(session, c.id, face);
+    upsertSession(session);
+    logLine(`[${c.name} · ${face}] ✓`, "ok");
+  } catch (e) {
+    patchFace(c, face, { status: "err", error: e.message });
+    renderSlotFromSession(session, c.id, face);
+    upsertSession(session);
+    logLine(`[${c.name} · ${face}] × ${e.message}`, "err");
+  }
+}
+
+function renderHistory(){
+  const sessions = loadSessions();
+  const list = document.getElementById("hist-list");
+  const count = document.getElementById("hist-count");
+  count.textContent = `${sessions.length} session${sessions.length===1?"":"s"}`;
+  list.innerHTML = "";
+  if (sessions.length === 0) {
+    list.innerHTML = `<div class="empty">No sessions yet. Compose a brief above.<\/div>`;
+    return;
+  }
+  const currentId = getCurrentId();
+  sessions.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "history-row" + (s.id === currentId ? " active" : "");
+    const d = new Date(s.createdAt);
+    const done = s.concepts.reduce((n,c)=>n+(c.frontUrl?1:0)+(c.backUrl?1:0),0);
+    row.innerHTML = `
+      <span class="when">${d.toLocaleDateString([], {month:'short',day:'2-digit'})}<br>${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}<\/span>
+      <span class="idea">${escapeHtml(s.inputs.idea)}<\/span>
+      <span class="label">${done}/12 plates<\/span>
+      <button class="del" data-id="${s.id}">Delete<\/button>
+    `;
+    row.addEventListener("click", (e) => {
+      if (e.target.classList.contains("del")) return;
+      setCurrentId(s.id);
+      renderSession(s);
+      renderHistory();
+    });
+    list.appendChild(row);
+  });
+  list.querySelectorAll(".del").forEach(b => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const id = b.dataset.id;
+    if (!confirm("Delete this session?")) return;
+    const arr = loadSessions().filter(s => s.id !== id);
+    saveSessions(arr);
+    if (getCurrentId() === id) {
+      localStorage.removeItem(CURRENT_KEY);
+      document.getElementById("results-section").style.display = "none";
+    }
+    renderHistory();
+  }));
+}
+
+function exportCurrentSession(){
+  const id = getCurrentId();
+  const session = loadSessions().find(s => s.id === id);
+  if (!session) { alert("No active session to export."); return; }
+  const html = buildStandaloneHtml(session);
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeIdea = session.inputs.idea.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,40);
+  a.href = url;
+  a.download = `concepts-${safeIdea}-${session.id}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function buildStandaloneHtml(session){
+  const esc = escapeHtml;
+  const d = new Date(session.createdAt);
+  const conceptsHtml = ["Minimalist","Contemporary","Dynamic"].map(cat => {
+    const items = session.concepts.filter(c => c.category === cat).map((c, i) => `
+      <article class="c">
+        <header><span class="idx">0${i+1}<\/span><span class="cat">${esc(c.category)}<\/span><\/header>
+        <h3>${esc(c.name)}<\/h3>
+        <p class="desc">${esc(c.description)}<\/p>
+        <div class="imgs">
+          <figure><span class="face">front · hero<\/span>${c.frontUrl?`<img src="${esc(c.frontUrl)}">`:`<div class="missing">no image<\/div>`}<\/figure>
+          <figure><span class="face">back · inner<\/span>${c.backUrl?`<img src="${esc(c.backUrl)}">`:`<div class="missing">no image<\/div>`}<\/figure>
+        <\/div>
+        <details><summary>prompts<\/summary>
+          <p><strong>Front:<\/strong> ${esc(c.frontPrompt)}<\/p>
+          <p><strong>Back:<\/strong> ${esc(c.backPrompt)}<\/p>
+        <\/details>
+      <\/article>
+    `).join("");
+    return `<section class="cat"><h2>${esc(cat)}<\/h2><div class="grid">${items}<\/div><\/section>`;
+  }).join("");
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(session.inputs.idea)} · Concepts<\/title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Caveat&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141210;--paper:#f3ede1;--ink:#f3ede1;--muted:#8c8275;--accent:#d9805a;--border:rgba(243,237,225,0.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Cormorant Garamond",serif;line-height:1.5;padding:48px 32px;max-width:1280px;margin:0 auto}
+header.top{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:48px}
+h1{font-weight:500;font-size:80px;line-height:0.9;letter-spacing:0.01em}
+h1 em{font-style:italic;color:var(--accent)}
+.meta{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.1em;color:var(--muted);margin-top:14px;display:grid;gap:4px}
+.meta span{color:var(--ink)}
+section.cat{margin-bottom:64px}
+section.cat h2{font-weight:500;font-size:44px;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:28px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.c header{display:flex;justify-content:space-between;font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.c header .idx{color:var(--accent)}
+.c h3{font-weight:500;font-size:32px;margin-bottom:8px}
+.c .desc{font-style:italic;font-size:17px;color:var(--muted);margin-bottom:18px}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:14px}
+figure{position:relative;background:var(--paper);padding:10px 10px 36px;border-radius:2px;box-shadow:0 14px 34px rgba(0,0,0,0.42)}
+figure img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+figure .face{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-family:"Caveat",cursive;font-size:18px;color:#3a322a}
+figure .missing{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:#1c1814}
+details{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--muted);border-top:1px solid var(--border);padding-top:12px;margin-top:6px}
+details summary{cursor:pointer;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent)}
+details p{margin-top:10px;line-height:1.6;color:var(--ink)}
+footer.btm{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);font-style:italic;font-size:18px;color:var(--muted)}
+@media (max-width:780px){.grid{grid-template-columns:1fr}h1{font-size:52px}}
+<\/style><\/head><body>
+<header class="top">
+  <h1>${esc(session.inputs.idea)} <em>—<\/em> six concepts<\/h1>
+  <div class="meta">
+    <span>Concept · ${esc(session.inputs.idea)}<\/span>
+    <span>Theme · ${esc(session.inputs.theme)}<\/span>
+    <span>Sections · ${esc(session.inputs.sections)}<\/span>
+    <span>Generated · ${d.toLocaleString()}<\/span>
+  <\/div>
+<\/header>
+${conceptsHtml}
+<footer class="btm">Exported from Concept Archive. Images hosted by kie.ai — URLs may expire.<\/footer>
+<\/body><\/html>`;
+}
+
+async function testApiConnection(){
+  const btn = document.getElementById("test-btn");
+  const apiKey = DEFAULT_KEY;
+  btn.classList.remove("ok","err");
+  btn.querySelector(".lbl").textContent = "Testing…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`${KIE_POLL}?taskId=ping_test_${Date.now()}`, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+    });
+    const data = await resp.json().catch(()=>({}));
+    if (resp.ok && data.code === 200) {
+      btn.classList.add("ok"); btn.querySelector(".lbl").textContent = "✓ API Connected";
+    } else if (data.code === 401 || resp.status === 401) {
+      btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ Bad API Key";
+    } else if (data.code === 404 || (data.msg||"").toLowerCase().includes("not found")) {
+      btn.classList.add("ok"); btn.querySelector(".lbl").textContent = "✓ API Connected";
+    } else {
+      btn.classList.add("err"); btn.querySelector(".lbl").textContent = `✗ ${data.msg || resp.status}`;
+    }
+  } catch (e) {
+    btn.classList.add("err"); btn.querySelector(".lbl").textContent = `✗ ${e.message}`;
+  }
+  btn.disabled = false;
+  setTimeout(() => { btn.classList.remove("ok","err"); btn.querySelector(".lbl").textContent = "Test API Connection"; }, 4000);
+}
+
+async function handleSubmit(e){
+  e.preventDefault();
+  const idea     = document.getElementById("f-idea").value.trim();
+  const theme    = document.getElementById("f-theme").value.trim();
+  const sections = document.getElementById("f-sections").value.trim();
+  const apiKey   = DEFAULT_KEY;
+  if (!idea || !theme || !sections) return;
+
+  const session = buildSession({ idea, theme, sections });
+  upsertSession(session);
+  setCurrentId(session.id);
+  renderSession(session);
+  renderHistory();
+
+  const btn = document.getElementById("gen-btn");
+  btn.disabled = true;
+  btn.classList.add("busy");
+  btn.querySelector(".lbl").textContent = "Generating…";
+  setStatus("busy","Generating");
+
+  clearConsole();
+  logLine(`Brief queued. Dispatching 12 plates to kie.ai (staggered)…`, "info");
+
+  const jobs = [];
+  let i = 0;
+  for (const c of session.concepts) {
+    for (const face of ["front","back"]) {
+      const idx = i++;
+      jobs.push((async () => {
+        await sleep(idx * DISPATCH_STAGGER_MS);
+        return generateImage(session, c, face, apiKey);
+      })());
+    }
+  }
+  await Promise.allSettled(jobs);
+
+  btn.disabled = false;
+  btn.classList.remove("busy");
+  btn.querySelector(".lbl").textContent = "Generate Concepts";
+  setStatus("","Ready");
+  logLine(`All plates resolved.`, "ok");
+  renderHistory();
+}
+
+function openLightbox(img){
+  const slot = img.closest(".img-slot");
+  const concept = slot?.closest(".concept");
+  const name = concept?.querySelector("h4")?.textContent?.trim() || "";
+  const face = slot?.querySelector(".face")?.textContent?.trim() || "";
+  document.getElementById("lb-name").textContent = name;
+  document.getElementById("lb-face").textContent = face;
+  document.getElementById("lb-img").src = img.src;
+  document.getElementById("lb-link").href = img.src;
+  const lb = document.getElementById("lightbox");
+  lb.classList.add("open");
+  lb.setAttribute("aria-hidden","false");
+  document.body.style.overflow = "hidden";
+}
+function closeLightbox(){
+  const lb = document.getElementById("lightbox");
+  lb.classList.remove("open");
+  lb.setAttribute("aria-hidden","true");
+  document.body.style.overflow = "";
+}
+
+function boot(){
+  document.getElementById("gen-form").addEventListener("submit", handleSubmit);
+  document.addEventListener("click", (e) => {
+    const img = e.target.closest(".img-slot img.loaded, .img-slot img[src]");
+    if (img && img.src) { e.preventDefault(); openLightbox(img); }
+  });
+  document.getElementById("lb-close").addEventListener("click", closeLightbox);
+  document.getElementById("lightbox").addEventListener("click", (e) => {
+    if (e.target.id === "lightbox") closeLightbox();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
+  document.getElementById("test-btn").addEventListener("click", testApiConnection);
+  document.getElementById("export-btn").addEventListener("click", exportCurrentSession);
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    if (!confirm("Clear ALL sessions? This cannot be undone.")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CURRENT_KEY);
+    document.getElementById("results-section").style.display = "none";
+    renderHistory();
+  });
+
+  const id = getCurrentId();
+  if (id) {
+    const s = loadSessions().find(x => x.id === id);
+    if (s) renderSession(s, { skipScroll: true });
+  }
+  renderHistory();
+}
+document.addEventListener("DOMContentLoaded", boot);
+</script>
+</body>
+</html>
