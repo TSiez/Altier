@@ -13,17 +13,12 @@ Both are dependency-light: hand-written HTML/CSS/JS, with small Python/Flask + N
 
 ## frontend/ — Concept Archive
 
-**Open** [`frontend/Frontend.html`](frontend/Frontend.html) directly in a browser.
+**Open** [`frontend/index.html`](frontend/index.html) directly in a browser, or visit the deployed site at `https://altier-frontend.onrender.com/`.
 
-Before it can generate, paste a kie.ai API key into the `DEFAULT_KEY` constant near the top of the `<script>` block (or set it via the in-page key field if you add one). The page never sends the key anywhere except `api.kie.ai`.
-
-```js
-const DEFAULT_KEY = "your-kie-ai-key-here";
-```
+Before it can generate, click **Set kie.ai API key** under "Test API Connection" and paste your key. It's stored only in your browser's `localStorage` and sent only to `api.kie.ai` — never committed, never sent anywhere else.
 
 Files of interest:
-- [`Frontend.html`](frontend/Frontend.html) — the generator UI.
-- [`Demo.html`](frontend/Demo.html) — a finished session ("Hours") shown as a polished gallery.
+- [`index.html`](frontend/index.html) — the generator UI (single page; this is what Render serves at `/`).
 - [`demo-prompts.json`](frontend/demo-prompts.json) — the brief used to seed the Hours demo.
 - [`demo-gen.ps1`](frontend/demo-gen.ps1) — PowerShell helper that re-generates the Hours demo. Reads `KIE_API_KEY` from the environment:
   ```powershell
@@ -95,7 +90,7 @@ Both free plans sleep after 15 minutes of idle and take ~30–60 s to wake on th
 `altier-frontend` (static):
 - `rootDir: frontend` — Render publishes everything in `/frontend` as a CDN static site.
 - `staticPublishPath: .` — files served from the root of `rootDir`.
-- An `index.html` landing page sits in `/frontend` so `/` resolves cleanly and links to `Frontend.html`, `Demo.html`, and over to the Trend Finder service.
+- `frontend/index.html` is the single generator page Render serves at `/`. It contains a "Trend Finder" nav link out to the sister service.
 
 `altier-trend-finder` (Python web service):
 - `rootDir: trend-finder` — build & start commands run inside that folder.
@@ -103,7 +98,7 @@ Both free plans sleep after 15 minutes of idle and take ~30–60 s to wake on th
 - `startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - server:app`
 - `healthCheckPath: /api/health` so Render knows when the service is alive.
 
-The `Trend Finder` nav link inside `Frontend.html` and `Demo.html` is hardcoded to `https://altier-trend-finder.onrender.com/`. If you change the service name or attach a custom domain, update those two hrefs.
+The `Trend Finder` nav link inside `frontend/index.html` is hardcoded to `https://altier-trend-finder.onrender.com/`. If you change the service name or attach a custom domain, update that href.
 
 ---
 
