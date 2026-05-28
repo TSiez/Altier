@@ -512,8 +512,19 @@
  * lives server-side (Render env var KIE_API_KEY). The frontend never
  * sees the key, the browser never sends it, and rotation only requires
  * updating the env var in the Render dashboard.
+ *
+ * Pick the right proxy depending on where the page is loaded from:
+ *   - file:// or localhost / 127.0.0.1   → local Flask (http://127.0.0.1:5001)
+ *   - anywhere else (Render)            → the deployed trend-finder service
+ * This lets `trend-finder/.env` + a local `python server.py` work for dev
+ * while production keeps using the Render env var.
  */
-const KIE_PROXY_BASE = "https://altier-trend-finder.onrender.com";
+const KIE_PROXY_BASE = (() => {
+  const h = location.hostname;
+  if (!h || h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0")
+    return "http://127.0.0.1:5001";
+  return "https://altier-trend-finder.onrender.com";
+})();
 const KIE_ENDPOINT   = `${KIE_PROXY_BASE}/api/kie/createTask`;
 const KIE_POLL       = `${KIE_PROXY_BASE}/api/kie/poll`;
 const KIE_MODEL      = "google/nano-banana";
