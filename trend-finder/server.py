@@ -185,11 +185,14 @@ def src_google_news(q: str, limit: int = 6) -> list:
 
 
 def src_reddit(q: str, limit: int = 6) -> list:
-    """Reddit search JSON."""
+    """Reddit search JSON. Ranked by upvotes (sort=top, last month) so the
+    items pulled into the merged top-5 are the most-upvoted matches, not
+    just the most-relevant — and the score is preserved for the UI."""
     out = []
     try:
         url = ("https://www.reddit.com/search.json?q="
-               + urllib.parse.quote(q) + f"&sort=relevance&limit={limit*2}&raw_json=1")
+               + urllib.parse.quote(q)
+               + f"&sort=top&t=month&limit={limit*2}&raw_json=1")
         resp = _get(url, headers={**HEADERS, "Accept": "application/json"})
         data = resp.json()
         for child in data.get("data", {}).get("children", []):
@@ -212,9 +215,14 @@ def src_reddit(q: str, limit: int = 6) -> list:
                 "link": link,
                 "source": "r/" + (d.get("subreddit") or "reddit"),
                 "thumbnail": thumb,
+                "score": int(d.get("score") or 0),                 # upvote count
+                "comments": int(d.get("num_comments") or 0),
             })
             if len(out) >= limit:
                 break
+        # Defensive: ensure the bucket is already sorted by score descending
+        # (Reddit returns it that way under sort=top, but be explicit).
+        out.sort(key=lambda x: -x.get("score", 0))
     except Exception:
         traceback.print_exc()
     return out

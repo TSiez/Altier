@@ -89,6 +89,7 @@
   .col-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--accent);padding-bottom:8px;margin-bottom:20px}
   .col-head h2{font-size:17px;font-family:var(--serif);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
   .col-head .meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .col-head .meta .stamp{color:var(--accent);font-weight:500;margin-left:2px}
 
   /* ---------- result cards ---------- */
   /* ---------- basket of product covers ---------- */
@@ -143,6 +144,10 @@
   .card .src::before,.card .src::after{content:"";position:absolute;top:1px;bottom:1px;width:4px;border:1.2px solid var(--accent)}
   .card .src::before{left:0;border-right:none}
   .card .src::after{right:0;border-left:none}
+  /* upvote-score chip for Reddit cards */
+  .card .score{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-left:8px;font-weight:500;letter-spacing:.02em;
+    display:inline-flex;align-items:center;gap:3px}
+  .card .score .up{color:var(--accent);font-weight:700}
   .card h3{font-family:var(--display);font-size:24px;font-weight:600;line-height:1.16;letter-spacing:0}
   .card h3 a{text-decoration:none}
   .card h3 a:hover{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
@@ -207,6 +212,10 @@
   table.preview td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top}
   table.preview td.n{font-family:var(--mono);color:var(--accent);font-weight:700;width:34px}
   table.preview td.s{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .pv-stamp{font-size:11.5px;color:var(--accent);letter-spacing:.04em;border:1px dashed var(--border);
+    padding:7px 10px;margin:0 0 12px;border-radius:2px;background:#fbf7ec}
+  .pv-stamp b{font-weight:700}
+  .pv-stamp .muted{color:var(--muted);font-weight:400;margin-left:4px}
 
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);z-index:80;
     background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;letter-spacing:.04em;
@@ -342,10 +351,20 @@ function letterTile(name){
 }
 window.imgFail = el => { el.onerror = null; el.classList.add("ph"); el.src = letterTile(el.dataset.srcName); };
 
+/* compact number — 1.2k / 14k / 3.4M — for upvote / comment chips */
+function formatN(n){
+  n = +n || 0;
+  if(n >= 1_000_000) return (n/1_000_000).toFixed(n>=10_000_000?0:1).replace(/\.0$/,"") + "M";
+  if(n >= 1_000)     return (n/1_000).toFixed(n>=10_000?0:1).replace(/\.0$/,"") + "k";
+  return String(n);
+}
+
 let results = [];      // current trending cards
 let ideas = [];        // collected {id, idea, source, article, url, checked}
 let nextId = 1;
 let lastQuery = "";     // the most recent search topic (used in headings)
+let lastCapturedISO = ""; // UTC timestamp of when the current results were captured
+let lastCapturedLocal = ""; // human-readable local time of the same moment
 
 /* ---------- toast ---------- */
 let toastT;
@@ -382,10 +401,17 @@ $("searchForm").addEventListener("submit", async e => {
     if(d.error) throw new Error(d.error);
     results = d.results || [];
     lastQuery = q;
+    const now = new Date();
+    lastCapturedISO = now.toISOString().replace(/\.\d{3}Z$/, "Z");
+    lastCapturedLocal = now.toLocaleString();
     $("resultsTitle").textContent = `Trending · ${q}`;
     renderCards();
     renderPanel();
-    $("resultsMeta").textContent = `${d.count} results · ${d.duration_ms}ms`;
+    // Show the date stamp right in the results header — that's the
+    // reproducibility anchor for what's currently on screen.
+    $("resultsMeta").innerHTML =
+      `${d.count} results · ${d.duration_ms}ms`
+      + ` · <span class="stamp" title="${esc(lastCapturedLocal)}">captured ${esc(lastCapturedISO)}</span>`;
   }catch(err){
     $("cards").innerHTML = `<div class="state"><div class="big">Couldn't reach the API</div>${esc(err.message)}.<br>Make sure <b>python server.py</b> is running on :5001.</div>`;
   }finally{
@@ -425,7 +451,7 @@ function renderCards(){
       </label>
       <div class="rank">${String(it.rank).padStart(2,"0")}</div>
       <div class="body">
-        <span class="src">${esc(it.source)}</span><span class="extracted-flag" title="Ideas already pulled from this story">✓ extracted</span>
+        <span class="src">${esc(it.source)}</span>${typeof it.score === "number" && it.score > 0 ? `<span class="score" title="Reddit upvotes (sort=top, last month)"><span class="up">↑</span> ${formatN(it.score)}${it.comments ? ` · ${formatN(it.comments)} 💬` : ""}</span>` : ""}<span class="extracted-flag" title="Ideas already pulled from this story">✓ extracted</span>
         <h3><a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.title)}</a></h3>
         <div class="acts">
           <button class="btn sm" data-act="extract" data-i="${i}">Extract Ideas</button>
@@ -675,8 +701,11 @@ function buildReportMarkdown(){
   lines.push("");
   lines.push("| | |");
   lines.push("|---|---|");
-  lines.push(`| **Generated (UTC)** | \`${utc}\` |`);
-  lines.push(`| **Local time**      | \`${local}\` |`);
+  lines.push(`| **Captured (UTC)**  | \`${lastCapturedISO || utc}\` |`);
+  if(lastCapturedLocal){
+    lines.push(`| **Captured (local)** | \`${lastCapturedLocal}\` |`);
+  }
+  lines.push(`| **Report generated** | \`${utc}\` (${local}) |`);
   lines.push(`| **Topic**           | \`${pipe(q)}\` |`);
   lines.push(`| **Tool**            | Altier · Trend Finder |`);
   lines.push(`| **Sources**         | Google News RSS · Reddit · Hacker News |`);
@@ -686,11 +715,14 @@ function buildReportMarkdown(){
   if(!results.length){
     lines.push("_no results — run a search first_");
   }else{
-    lines.push("| # | Source | Title | Link |");
-    lines.push("|---|---|---|---|");
+    lines.push("| # | Source | Score | Title | Link |");
+    lines.push("|---|---|---|---|---|");
     results.forEach((r,i) => {
       const rank = String(r.rank ?? i+1).padStart(2,"0");
-      lines.push(`| ${rank} | ${pipe(r.source)} | ${pipe(r.title)} | [open](${r.link||"#"}) |`);
+      const score = (typeof r.score === "number" && r.score > 0)
+        ? `↑ ${formatN(r.score)}${r.comments ? ` · ${formatN(r.comments)}💬` : ""}`
+        : "—";
+      lines.push(`| ${rank} | ${pipe(r.source)} | ${score} | ${pipe(r.title)} | [open](${r.link||"#"}) |`);
     });
   }
   lines.push("");
@@ -736,7 +768,10 @@ $("clearBtn").onclick = () => { ideas = []; renderPanel(); toast("Cleared"); };
 $("previewBtn").onclick = () => {
   const rows = ideas.filter(x => x.checked);
   openModal("Preview", lastQuery ? `Selected ideas — “${lastQuery}”` : "Selected ideas to export");
-  $("mBody").innerHTML = `<table class="preview"><thead><tr><th>#</th><th>Idea</th><th>Source</th></tr></thead><tbody>${
+  const stamp = lastCapturedISO
+    ? `<div class="pv-stamp mono">Captured · <b>${esc(lastCapturedISO)}</b> <span class="muted">(${esc(lastCapturedLocal)})</span></div>`
+    : "";
+  $("mBody").innerHTML = stamp + `<table class="preview"><thead><tr><th>#</th><th>Idea</th><th>Source</th></tr></thead><tbody>${
     rows.map((x, i) => `<tr><td class="n">${i+1}</td><td>${esc(x.idea)}<div class="m mono" style="font-size:10px;color:var(--muted);margin-top:2px">${esc(x.article)}</div></td><td class="s">${esc(x.source)}</td></tr>`).join("")
   }</tbody></table>`;
   $("mFoot").innerHTML = `<span class="sel-info">${rows.length} rows</span><button class="btn ghost sm" data-close>Close</button><button class="btn sm" id="dl">Export CSV</button>`;
