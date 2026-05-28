@@ -1,20 +1,45 @@
-# Render Blueprint — one-click deploy for the Trend Finder.
+# Render Blueprint — one-click deploy for the whole Altier suite.
 # https://render.com/docs/blueprint-spec
 #
-# What this builds:
-#   • A single Web Service that serves both the static page (Trend Finder.html
-#     + assets/) and the Flask API (/api/health, /api/trending, /api/extract,
-#     /img). One origin, no CORS dance.
+# This declares TWO services:
+#
+#   1. altier-frontend       (static site, free)
+#      ➜ https://altier-frontend.onrender.com
+#      Concept Archive — the kie.ai-driven AI design-concept generator.
+#      Pure static HTML/CSS/JS in /frontend.
+#
+#   2. altier-trend-finder   (Python web service, free)
+#      ➜ https://altier-trend-finder.onrender.com
+#      Flask + gunicorn serving the Trend Finder page, the /api/* routes
+#      and the /img thumbnail proxy from one origin.
 #
 # How to use it:
 #   1. Push this repo to GitHub.
 #   2. In Render, click "New +" → "Blueprint" → connect this repo.
-#   3. Render reads render.yaml, creates the service, prompts you for
-#      GEMINI_API_KEY, and starts the build.
-#   4. First request after 15 min idle wakes the free dyno (~30–60s cold
-#      start). Bump the plan to "starter" ($7/mo) to keep it warm 24/7.
+#   3. Render reads render.yaml, creates both services, and prompts
+#      you for GEMINI_API_KEY (only the Trend Finder needs it).
+#   4. Free dynos sleep after 15 min idle (~30–60 s cold start on next
+#      hit). Bump either service to "starter" ($7/mo) to keep warm 24/7.
 
 services:
+  # ---------- 1. Concept Archive (static) ----------
+  - type: web
+    runtime: static
+    name: altier-frontend
+    rootDir: frontend
+    buildCommand: 'echo "static site — nothing to build"'
+    staticPublishPath: .
+    autoDeploy: true
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer-when-downgrade
+
+  # ---------- 2. Trend Finder (Flask + gunicorn) ----------
   - type: web
     name: altier-trend-finder
     runtime: python

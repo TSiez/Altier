@@ -72,20 +72,38 @@ A two-process app:
 
 ## Deploy to Render (one-click via Blueprint)
 
-A [`render.yaml`](render.yaml) at the repo root makes the Trend Finder one click away:
+The [`render.yaml`](render.yaml) at the repo root declares **two services** that come up together:
+
+| Service | Type | URL | What it serves |
+|---|---|---|---|
+| `altier-frontend` | Static site (free) | `https://altier-frontend.onrender.com` | Concept Archive — landing + Generator + Demo |
+| `altier-trend-finder` | Python web service (free) | `https://altier-trend-finder.onrender.com` | Trend Finder page + `/api/*` + `/img` thumbnail proxy |
+
+### Steps
 
 1. Push this repo to GitHub.
-2. In Render, click **New + → Blueprint** and pick this repo. Render reads `render.yaml` and stages a single Web Service: **`altier-trend-finder`**, running Flask under gunicorn, serving both the static page and the API from the same origin.
-3. When prompted, paste your `GEMINI_API_KEY` (it's marked `sync: false` so it's set per-environment, never committed). `GEMINI_MODEL` defaults to `gemini-flash-latest`.
-4. Deploy. The first request after 15 min of idle on the **free** plan wakes the dyno (~30–60 s cold start) — change `plan: free` → `plan: starter` in `render.yaml` (or in the dashboard) for $7/mo and it stays warm 24/7.
+2. In Render, click **New + → Blueprint** and pick this repo. Render reads `render.yaml`, creates both services, and starts the build.
+3. When prompted, paste your `GEMINI_API_KEY` (only the Trend Finder needs it — the static frontend has no secrets). `GEMINI_MODEL` defaults to `gemini-flash-latest`.
+4. Wait for both services to go green. The frontend is a static CDN deploy (a few seconds); the Trend Finder builds Python deps + boots gunicorn (a couple of minutes).
 
-The blueprint sets:
-- `rootDir: trend-finder` so the build/run happens inside that folder
-- `buildCommand: pip install -r requirements.txt` (includes `gunicorn`)
+### Free-tier sleep
+
+Both free plans sleep after 15 minutes of idle and take ~30–60 s to wake on the next request. To keep either service warm 24/7, change its `plan: free` → `plan: starter` in `render.yaml` (or flip it in the Render dashboard later) — that's $7/mo per service.
+
+### What the blueprint does
+
+`altier-frontend` (static):
+- `rootDir: frontend` — Render publishes everything in `/frontend` as a CDN static site.
+- `staticPublishPath: .` — files served from the root of `rootDir`.
+- An `index.html` landing page sits in `/frontend` so `/` resolves cleanly and links to `Frontend.html`, `Demo.html`, and over to the Trend Finder service.
+
+`altier-trend-finder` (Python web service):
+- `rootDir: trend-finder` — build & start commands run inside that folder.
+- `buildCommand: pip install -r requirements.txt` (includes `gunicorn`).
 - `startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - server:app`
-- `healthCheckPath: /api/health` so Render knows the service is up
+- `healthCheckPath: /api/health` so Render knows when the service is alive.
 
-The frontend (Concept Archive) is pure static and is happiest on Vercel (free, edge-CDN, no server). Drop `frontend/` into a Vercel project as static output and you're done.
+The `Trend Finder` nav link inside `Frontend.html` and `Demo.html` is hardcoded to `https://altier-trend-finder.onrender.com/`. If you change the service name or attach a custom domain, update those two hrefs.
 
 ---
 

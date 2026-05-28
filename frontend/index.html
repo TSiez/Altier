@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atelier — Concept Archive</title>
+<meta name="description" content="Atelier · Concept Archive — an AI design-concept generator and a finished demo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141210;
+    --paper:#f3ede1;
+    --ink:#f3ede1;
+    --muted:#8c8275;
+    --accent:#d9805a;
+    --border:rgba(243,237,225,0.16);
+    --serif:"Cormorant Garamond","Times New Roman",serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--serif);min-height:100vh}
+  body{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:32px;text-align:center;line-height:1.55;
+    background-image:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(217,128,90,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(217,128,90,0.04), transparent 60%);
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  .wrap{max-width:760px;position:relative;z-index:1}
+  .tag{font-family:var(--mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);margin-bottom:24px}
+  .tag::before{content:"❋  "}
+  h1{font-weight:500;font-size:clamp(60px,10vw,128px);line-height:0.9;letter-spacing:-0.005em;margin-bottom:8px}
+  h1 em{font-style:italic;color:var(--accent)}
+  .lead{font-style:italic;font-size:clamp(18px,2vw,22px);color:rgba(243,237,225,0.78);max-width:560px;margin:18px auto 44px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;max-width:680px;margin:0 auto}
+  a.card{
+    background:rgba(243,237,225,0.05);border:1px solid var(--border);
+    color:var(--ink);text-decoration:none;padding:24px 22px 22px;border-radius:8px;
+    text-align:left;display:flex;flex-direction:column;gap:6px;transition:.2s;
+  }
+  a.card:hover{border-color:var(--accent);transform:translateY(-3px);background:rgba(243,237,225,0.08)}
+  a.card .k{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent)}
+  a.card .t{font-size:24px;font-weight:500;line-height:1.15;letter-spacing:-0.01em}
+  a.card .d{font-size:14.5px;color:var(--muted);line-height:1.45;margin-top:4px}
+  a.card .arr{margin-top:auto;font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);padding-top:14px}
+  footer{margin-top:48px;font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+  footer .dot{margin:0 8px;opacity:.5}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="tag">Atelier · Concept Archive</div>
+    <h1>Concept<br><em>Archive.</em></h1>
+    <p class="lead">An AI design-concept generator and the finished demo session it produced — both kept like keepsakes.</p>
+    <div class="grid">
+      <a class="card" href="./Frontend.html">
+        <span class="k">Open · 01</span>
+        <span class="t">The Generator</span>
+        <span class="d">Hand it an idea, a theme and a set of sections — get six homepage concepts back, rendered live.</span>
+        <span class="arr">Open ↗</span>
+      </a>
+      <a class="card" href="./Demo.html">
+        <span class="k">Open · 02</span>
+        <span class="t">Hours — Demo</span>
+        <span class="d">A finished session: six homepage concepts for "Hours, a sleep apothecary", shown as a polished gallery.</span>
+        <span class="arr">Open ↗</span>
+      </a>
+      <a class="card" href="https://altier-trend-finder.onrender.com/">
+        <span class="k">Sister site</span>
+        <span class="t">Trend Finder</span>
+        <span class="d">A live Flask + Gemini news scraper that pulls ranked ideas out of trending articles.</span>
+        <span class="arr">Visit ↗</span>
+      </a>
+    </div>
+    <footer>Bystander Studio<span class="dot">·</span>2026</footer>
+  </div>
+</body>
+</html>
