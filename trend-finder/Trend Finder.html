@@ -61,7 +61,16 @@
   .brand{font-family:var(--display);font-style:italic;font-weight:500;font-size:26px;letter-spacing:.005em;color:var(--ink);display:flex;align-items:baseline;gap:4px}
   .brand .script{font-family:var(--script);color:var(--accent);font-size:1.35em;font-style:normal;font-weight:600;line-height:.8;margin-left:6px}
   .brand .edition{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-left:14px;align-self:center}
-  .api-chip{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);display:flex;align-items:center;gap:8px}
+  /* "back to Concept Archive" link in the masthead — sits just before
+     the api-chip on the right side. Mono kicker with a ← glyph; turns
+     accent-orange on hover so it reads as a clickable affordance. */
+  .back-link{margin-left:auto;display:inline-flex;align-items:center;gap:8px;
+    text-decoration:none;color:var(--muted-2);
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    padding:7px 14px;border:1px solid var(--border);border-radius:2px;transition:.18s}
+  .back-link:hover{color:var(--accent);border-color:var(--accent);transform:translateX(-2px)}
+  .back-link .arr{font-size:13px;line-height:1}
+  .api-chip{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);display:flex;align-items:center;gap:8px}
   .api-chip .dot{width:7px;height:7px;border-radius:50%;background:#5e564c;box-shadow:0 0 0 3px rgba(243,237,225,.04)}
   .api-chip.ok .dot{background:var(--ok);box-shadow:0 0 6px rgba(134,176,124,.55)}
   .api-chip.off .dot{background:var(--accent);box-shadow:0 0 6px rgba(217,128,90,.55)}
@@ -267,6 +276,9 @@
 <header class="mast">
   <div class="mast-in">
     <div class="brand">Trend<span class="script">Finder</span><span class="edition">daily edition</span></div>
+    <a class="back-link" href="https://altier-frontend.onrender.com/" title="Back to Concept Archive — the AI design-concept generator">
+      <span class="arr">←</span><span>Concept Archive</span>
+    </a>
     <div class="api-chip" id="apiChip" title="Backend status">
       <span class="dot"></span><span id="apiLbl">checking…</span>
       <span class="gem" id="gemLbl"></span>
