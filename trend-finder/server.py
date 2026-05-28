@@ -606,13 +606,23 @@ _PLACEHOLDER_SVG = (
 
 def _placeholder_img():
     return Response(_PLACEHOLDER_SVG, content_type="image/svg+xml",
-                    headers={"Cache-Control": "public, max-age=3600"})
+                    headers={"Cache-Control": "public, max-age=3600",
+                             "Access-Control-Allow-Origin": "*"})
 
 
 @app.route("/img")
 def img_proxy():
-    """Thumbnail proxy (mirrors serve.mjs). ALWAYS returns 200 — on any failure
-    it serves a placeholder so a broken thumbnail can never loop via onerror."""
+    """Image proxy.
+
+    Originally just a thumbnail relay for the Trend Finder UI, but the
+    Concept Archive (altier-frontend) also fetches through this route to
+    embed kie.ai images into its standalone HTML export — kie.ai's CDN
+    doesn't always send CORS headers, so a direct fetch() from the
+    front-end is sometimes blocked. We add `Access-Control-Allow-Origin: *`
+    here so a cross-origin fetch can read the bytes back as a Blob.
+
+    ALWAYS returns 200 — on any failure we serve a tiny placeholder SVG
+    so an <img onerror> handler can never loop."""
     target = (request.args.get("url") or "").strip()
     if not re.match(r"^https?://", target):
         return _placeholder_img()
@@ -622,7 +632,8 @@ def img_proxy():
         if not r.ok or not ctype.startswith("image"):
             return _placeholder_img()
         return Response(r.content, content_type=ctype,
-                        headers={"Cache-Control": "public, max-age=86400"})
+                        headers={"Cache-Control": "public, max-age=86400",
+                                 "Access-Control-Allow-Origin": "*"})
     except Exception:
         return _placeholder_img()
 

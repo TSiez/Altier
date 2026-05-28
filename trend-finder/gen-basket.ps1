@@ -1,10 +1,17 @@
 #requires -Version 5.1
 # One-off: generate a top-down pink wire basket via Kie.ai (nano-banana).
 # Reads KIE_API_KEY from D2/.env. NOT Gemini.
+# Pass -Force to regenerate when basket-wire.png already exists.
+param([switch]$Force)
 $ErrorActionPreference = "Stop"
 $OutDir = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "assets"
 $Out    = Join-Path $OutDir "basket-wire.png"
 $EnvPath = "C:\Users\acer\Desktop\Arca\D2\.env"
+
+if ((Test-Path $Out) -and (-not $Force)) {
+  Write-Host "basket-wire.png already exists — skipping (use -Force to regenerate)." -ForegroundColor DarkGray
+  exit 0
+}
 
 $apiKey = ((Get-Content $EnvPath -Raw) | Select-String -Pattern 'KIE_API_KEY=([^\s]+)').Matches[0].Groups[1].Value
 if (-not $apiKey) { throw "KIE_API_KEY not found" }
