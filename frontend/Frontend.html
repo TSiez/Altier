@@ -181,6 +181,21 @@
   button.cta-ghost.ok{color:#3a6b3a;border-color:#3a6b3a}
   button.cta-ghost.err{color:#b5402f;border-color:#b5402f}
 
+  /* key-paste row — sits under the Test button. Renders dimmer than the
+     primary CTAs to keep visual hierarchy; turns orange when no key set */
+  .key-row{display:flex;gap:8px;margin-top:2px}
+  button.key-btn{
+    flex:1;background:transparent;color:#7a6e5e;
+    border:1px dashed rgba(26,22,18,0.22);padding:8px 12px;cursor:pointer;border-radius:3px;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;transition:.15s;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  }
+  button.key-btn:hover{color:var(--ink-dark);border-color:var(--ink-dark)}
+  button.key-btn.ghost{flex:0;padding:8px 12px}
+  button.key-btn .ic{font-size:11px;line-height:1}
+  button.key-btn.missing{color:var(--accent);border-color:var(--accent);border-style:solid}
+  button.key-btn.saved{color:#3a6b3a;border-color:rgba(58,107,58,0.5);border-style:solid}
+
   /* ---------- console ---------- */
   section.console-wrap{padding:24px 36px 0;max-width:1280px;margin:0 auto}
   .console{
@@ -419,6 +434,12 @@
         <button class="cta-ghost" id="test-btn" type="button">
           <span class="lbl">Test API Connection</span>
         </button>
+        <div class="key-row">
+          <button class="key-btn" id="set-key-btn" type="button" title="Paste your kie.ai API key — stored only in this browser, never sent anywhere except api.kie.ai">
+            <span class="ic">⌗</span><span class="lbl" id="key-state">Set kie.ai API key</span>
+          </button>
+          <button class="key-btn ghost" id="clear-key-btn" type="button" title="Remove the saved key from this browser" hidden>Forget</button>
+        </div>
       </div>
     </form>
   </div>
@@ -492,9 +513,47 @@
 const KIE_ENDPOINT = "https://api.kie.ai/api/v1/jobs/createTask";
 const KIE_POLL     = "https://api.kie.ai/api/v1/jobs/recordInfo";
 const KIE_MODEL    = "google/nano-banana";
-const DEFAULT_KEY  = "7637106a70ef3a36913ae7c8a7f995ee";
 const STORAGE_KEY  = "atelier.sessions";
 const CURRENT_KEY  = "atelier.current";
+const API_KEY_LS   = "atelier.kieApiKey";   // user-supplied key, persisted per browser
+
+/* ---------- API key handling ----------
+ * Never hardcoded — the user pastes their kie.ai key once and we keep it in
+ * localStorage. The key is sent ONLY to api.kie.ai, never to any other host.
+ */
+function getApiKey({prompt: doPrompt = false} = {}){
+  let k = (localStorage.getItem(API_KEY_LS) || "").trim();
+  if (!k && doPrompt) {
+    const v = window.prompt(
+      "Paste your kie.ai API key.\n\n" +
+      "Get one at https://kie.ai/api-key — it stays in your browser " +
+      "(localStorage) and is sent only to api.kie.ai. Nothing else.",
+      ""
+    );
+    if (v && v.trim()) {
+      k = v.trim();
+      localStorage.setItem(API_KEY_LS, k);
+    }
+  }
+  return k;
+}
+function clearApiKey(){ localStorage.removeItem(API_KEY_LS); }
+function refreshKeyChip(){
+  const btn = document.getElementById("set-key-btn");
+  const clr = document.getElementById("clear-key-btn");
+  if (!btn) return;
+  const k = getApiKey();
+  btn.classList.remove("missing","saved");
+  if (k) {
+    btn.classList.add("saved");
+    document.getElementById("key-state").textContent = `Key set · …${k.slice(-4)}`;
+    clr.hidden = false;
+  } else {
+    btn.classList.add("missing");
+    document.getElementById("key-state").textContent = "Set kie.ai API key";
+    clr.hidden = true;
+  }
+}
 
 const POLL_INTERVAL_MS  = 4000;
 const POLL_MAX_TRIES    = 45;
@@ -1075,7 +1134,12 @@ ${conceptsHtml}
 
 async function testApiConnection(){
   const btn = document.getElementById("test-btn");
-  const apiKey = DEFAULT_KEY;
+  const apiKey = getApiKey({prompt: true});
+  if (!apiKey) {
+    btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ No key set";
+    setTimeout(() => { btn.classList.remove("err"); btn.querySelector(".lbl").textContent = "Test API Connection"; }, 2500);
+    return;
+  }
   btn.classList.remove("ok","err");
   btn.querySelector(".lbl").textContent = "Testing…";
   btn.disabled = true;
@@ -1105,8 +1169,9 @@ async function handleSubmit(e){
   const idea     = document.getElementById("f-idea").value.trim();
   const theme    = document.getElementById("f-theme").value.trim();
   const sections = document.getElementById("f-sections").value.trim();
-  const apiKey   = DEFAULT_KEY;
+  const apiKey   = getApiKey({prompt: true});
   if (!idea || !theme || !sections) return;
+  if (!apiKey) { alert("Paste your kie.ai API key first — the orange button under \"Test API Connection\"."); return; }
 
   const session = buildSession({ idea, theme, sections });
   upsertSession(session);
@@ -1178,6 +1243,16 @@ function boot(){
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
   document.getElementById("test-btn").addEventListener("click", testApiConnection);
   document.getElementById("export-btn").addEventListener("click", exportCurrentSession);
+  document.getElementById("set-key-btn").addEventListener("click", () => {
+    getApiKey({prompt: true});
+    refreshKeyChip();
+  });
+  document.getElementById("clear-key-btn").addEventListener("click", () => {
+    if (!confirm("Forget the saved kie.ai key from this browser?")) return;
+    clearApiKey();
+    refreshKeyChip();
+  });
+  refreshKeyChip();
   document.getElementById("clear-btn").addEventListener("click", () => {
     if (!confirm("Clear ALL sessions? This cannot be undone.")) return;
     localStorage.removeItem(STORAGE_KEY);
