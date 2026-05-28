@@ -75,6 +75,14 @@ GEMINI_URL = (
     f"{GEMINI_MODEL}:generateContent"
 )
 
+# kie.ai credentials. Set via the KIE_API_KEY environment variable (or .env
+# entry locally). The Frontend concept generator proxies its image-generation
+# calls through this server so the key never reaches the browser. NEVER hard-
+# code this — the previous leak burned credits and forced a rotation.
+KIE_API_KEY = os.environ.get("KIE_API_KEY", "").strip()
+KIE_CREATE_URL = "https://api.kie.ai/api/v1/jobs/createTask"
+KIE_POLL_URL = "https://api.kie.ai/api/v1/jobs/recordInfo"
+
 # Reddit credentials.
 #
 # The anonymous www.reddit.com/search.json endpoint is reliably 403'd from
@@ -515,6 +523,7 @@ def api_health():
         "service": "trend-finder",
         "gemini": bool(GEMINI_API_KEY),
         "model": GEMINI_MODEL,
+        "kie": bool(KIE_API_KEY),
         "reddit": {
             "configured": reddit_mode,
             "last_mode": _REDDIT_LAST_MODE,  # oauth | public | blocked | error
@@ -638,6 +647,66 @@ def img_proxy():
         return _placeholder_img()
 
 
+# --------------------------------------------------------------------------
+# kie.ai proxy — keeps KIE_API_KEY server-side
+#
+# The Concept Archive frontend (altier-frontend) sends its createTask /
+# poll requests here instead of straight to api.kie.ai. We attach the
+# Authorization header from our env var and forward the response back.
+# This means:
+#   - The kie.ai key only lives in trend-finder/.env (locally) or in the
+#     Render dashboard env var (prod). It is never sent to the browser.
+#   - A leak of the public frontend can't expose the key.
+# CORS is already enabled on /api/* by the Flask-CORS init above.
+# --------------------------------------------------------------------------
+
+@app.route("/api/kie/createTask", methods=["POST", "OPTIONS"])
+def api_kie_create():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    if not KIE_API_KEY:
+        return jsonify({"error": "KIE_API_KEY is not configured on the server"}), 503
+    body = request.get_json(silent=True) or {}
+    try:
+        r = requests.post(
+            KIE_CREATE_URL,
+            headers={
+                "Authorization": f"Bearer {KIE_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+            timeout=30,
+        )
+        # Pass through kie.ai's JSON + status verbatim — the frontend's
+        # existing error-handling expects kie.ai's response shape.
+        return Response(r.content, status=r.status_code,
+                        content_type=r.headers.get("content-type", "application/json"))
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"kie.ai upstream failed: {exc}"}), 502
+
+
+@app.route("/api/kie/poll", methods=["GET", "OPTIONS"])
+def api_kie_poll():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    if not KIE_API_KEY:
+        return jsonify({"error": "KIE_API_KEY is not configured on the server"}), 503
+    task_id = (request.args.get("taskId") or "").strip()
+    if not task_id:
+        return jsonify({"error": "missing taskId"}), 400
+    try:
+        r = requests.get(
+            KIE_POLL_URL,
+            headers={"Authorization": f"Bearer {KIE_API_KEY}"},
+            params={"taskId": task_id},
+            timeout=30,
+        )
+        return Response(r.content, status=r.status_code,
+                        content_type=r.headers.get("content-type", "application/json"))
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"kie.ai upstream failed: {exc}"}), 502
+
+
 @app.route("/")
 def index():
     return send_from_directory(ROOT, "Trend Finder.html")
@@ -662,5 +731,6 @@ if __name__ == "__main__":
     print(f"  API   : http://{host}:{port}/api/trending?q=ai+gadgets")
     print(f"  Gemini: {'configured (' + GEMINI_MODEL + ')' if GEMINI_API_KEY else 'NOT configured — extraction will use HTML fallback'}")
     print(f"  Reddit: {'OAuth ready (oauth.reddit.com)' if REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET else 'public endpoint only — likely 403 on cloud hosts. set REDDIT_CLIENT_ID/SECRET to bypass'}")
+    print(f"  kie.ai: {'proxy ready (/api/kie/createTask, /api/kie/poll)' if KIE_API_KEY else 'NOT configured — /api/kie/* will return 503. set KIE_API_KEY to enable'}")
     print("  Tip   : start the Node server too:  node serve.mjs\n")
     app.run(host=host, port=port, debug=False, threaded=True)

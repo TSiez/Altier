@@ -434,10 +434,9 @@
           <span class="lbl">Test API Connection</span>
         </button>
         <div class="key-row">
-          <button class="key-btn" id="set-key-btn" type="button" title="Paste your kie.ai API key — stored only in this browser, never sent anywhere except api.kie.ai">
-            <span class="ic">⌗</span><span class="lbl" id="key-state">Set kie.ai API key</span>
-          </button>
-          <button class="key-btn ghost" id="clear-key-btn" type="button" title="Remove the saved key from this browser" hidden>Forget</button>
+          <span class="key-btn" id="set-key-btn" title="Server-side kie.ai key status — set via the trend-finder service's KIE_API_KEY env var">
+            <span class="ic">⌗</span><span class="lbl" id="key-state">Checking server key…</span>
+          </span>
         </div>
       </div>
     </form>
@@ -509,48 +508,38 @@
    Storage:  localStorage [atelier.sessions, atelier.current]
    ========================================================================= */
 
-const KIE_ENDPOINT = "https://api.kie.ai/api/v1/jobs/createTask";
-const KIE_POLL     = "https://api.kie.ai/api/v1/jobs/recordInfo";
-const KIE_MODEL    = "google/nano-banana";
-const STORAGE_KEY  = "atelier.sessions";
-const CURRENT_KEY  = "atelier.current";
-const API_KEY_LS   = "atelier.kieApiKey";   // user-supplied key, persisted per browser
-
-/* ---------- API key handling ----------
- * Never hardcoded — the user pastes their kie.ai key once and we keep it in
- * localStorage. The key is sent ONLY to api.kie.ai, never to any other host.
+/* The Trend Finder Flask service proxies kie.ai for us so the API key
+ * lives server-side (Render env var KIE_API_KEY). The frontend never
+ * sees the key, the browser never sends it, and rotation only requires
+ * updating the env var in the Render dashboard.
  */
-function getApiKey({prompt: doPrompt = false} = {}){
-  let k = (localStorage.getItem(API_KEY_LS) || "").trim();
-  if (!k && doPrompt) {
-    const v = window.prompt(
-      "Paste your kie.ai API key.\n\n" +
-      "Get one at https://kie.ai/api-key — it stays in your browser " +
-      "(localStorage) and is sent only to api.kie.ai. Nothing else.",
-      ""
-    );
-    if (v && v.trim()) {
-      k = v.trim();
-      localStorage.setItem(API_KEY_LS, k);
-    }
-  }
-  return k;
-}
-function clearApiKey(){ localStorage.removeItem(API_KEY_LS); }
-function refreshKeyChip(){
+const KIE_PROXY_BASE = "https://altier-trend-finder.onrender.com";
+const KIE_ENDPOINT   = `${KIE_PROXY_BASE}/api/kie/createTask`;
+const KIE_POLL       = `${KIE_PROXY_BASE}/api/kie/poll`;
+const KIE_MODEL      = "google/nano-banana";
+const STORAGE_KEY    = "atelier.sessions";
+const CURRENT_KEY    = "atelier.current";
+
+/* Status chip — does the server have a KIE_API_KEY configured? */
+async function refreshKeyChip(){
   const btn = document.getElementById("set-key-btn");
-  const clr = document.getElementById("clear-key-btn");
-  if (!btn) return;
-  const k = getApiKey();
+  const state = document.getElementById("key-state");
+  if (!btn || !state) return;
   btn.classList.remove("missing","saved");
-  if (k) {
-    btn.classList.add("saved");
-    document.getElementById("key-state").textContent = `Key set · …${k.slice(-4)}`;
-    clr.hidden = false;
-  } else {
+  state.textContent = "Checking server key…";
+  try {
+    const r = await fetch(`${KIE_PROXY_BASE}/api/health`, { cache: "no-store" });
+    const d = await r.json();
+    if (d.kie) {
+      btn.classList.add("saved");
+      state.textContent = "kie.ai key set on server";
+    } else {
+      btn.classList.add("missing");
+      state.textContent = "kie.ai key NOT set on server";
+    }
+  } catch {
     btn.classList.add("missing");
-    document.getElementById("key-state").textContent = "Set kie.ai API key";
-    clr.hidden = true;
+    state.textContent = "server unreachable";
   }
 }
 
@@ -627,24 +616,27 @@ function upsertSession(session){
   saveSessions(arr);
 }
 
-async function kieCreateTask(prompt, apiKey){
+/* The proxy attaches the server-side KIE_API_KEY for us, so these calls
+ * don't need an Authorization header at all. If the server has no key
+ * configured it returns 503 with {error: "..."} — we surface that error
+ * verbatim so the user knows where the misconfiguration is. */
+async function kieCreateTask(prompt){
   const resp = await fetch(KIE_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model: KIE_MODEL, input: { prompt, output_format: "png", image_size: "16:9" } }),
   });
   const data = await resp.json().catch(()=>({}));
-  if (!resp.ok || data.code !== 200) throw new Error(data.msg || data.message || `createTask HTTP ${resp.status}`);
+  if (resp.status === 503) throw new Error(data.error || "kie.ai key not configured on server");
+  if (!resp.ok || data.code !== 200) throw new Error(data.msg || data.message || data.error || `createTask HTTP ${resp.status}`);
   if (!data.data?.taskId) throw new Error("createTask returned no taskId");
   return data.data.taskId;
 }
 
-async function kiePollTask(taskId, apiKey){
+async function kiePollTask(taskId){
   for (let i = 0; i < POLL_MAX_TRIES; i++) {
     await sleep(POLL_INTERVAL_MS);
-    const resp = await fetch(`${KIE_POLL}?taskId=${encodeURIComponent(taskId)}`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-    });
+    const resp = await fetch(`${KIE_POLL}?taskId=${encodeURIComponent(taskId)}`);
     const data = await resp.json().catch(()=>({}));
     if (!resp.ok) continue;
     const state = data.data?.state;
@@ -802,18 +794,18 @@ function renderSlotFromSession(session, conceptId, face){
   refreshExportButton(conceptId);
 }
 
-async function generateImage(session, c, face, apiKey){
+async function generateImage(session, c, face){
   const prompt = face === "front" ? c.frontPrompt : c.backPrompt;
   patchFace(c, face, { status: "working" });
   renderSlotFromSession(session, c.id, face);
   upsertSession(session);
   try {
     logLine(`[${c.name} · ${face}] createTask…`);
-    const taskId = await kieCreateTask(prompt, apiKey);
+    const taskId = await kieCreateTask(prompt);
     logLine(`[${c.name} · ${face}] task ${taskId.slice(0,8)} polling`, "info");
     patchFace(c, face, { status: "polling" });
     renderSlotFromSession(session, c.id, face);
-    const url = await kiePollTask(taskId, apiKey);
+    const url = await kiePollTask(taskId);
     patchFace(c, face, { status: "done", url });
     renderSlotFromSession(session, c.id, face);
     upsertSession(session);
@@ -1133,34 +1125,28 @@ ${conceptsHtml}
 
 async function testApiConnection(){
   const btn = document.getElementById("test-btn");
-  const apiKey = getApiKey({prompt: true});
-  if (!apiKey) {
-    btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ No key set";
-    setTimeout(() => { btn.classList.remove("err"); btn.querySelector(".lbl").textContent = "Test API Connection"; }, 2500);
-    return;
-  }
   btn.classList.remove("ok","err");
   btn.querySelector(".lbl").textContent = "Testing…";
   btn.disabled = true;
   try {
-    const resp = await fetch(`${KIE_POLL}?taskId=ping_test_${Date.now()}`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-    });
+    // Ping the proxy with a bogus taskId. A configured kie.ai key
+    // returns "task not found" (still a successful auth round-trip).
+    const resp = await fetch(`${KIE_POLL}?taskId=ping_test_${Date.now()}`);
     const data = await resp.json().catch(()=>({}));
-    if (resp.ok && data.code === 200) {
-      btn.classList.add("ok"); btn.querySelector(".lbl").textContent = "✓ API Connected";
+    if (resp.status === 503) {
+      btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ Server has no key";
     } else if (data.code === 401 || resp.status === 401) {
-      btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ Bad API Key";
-    } else if (data.code === 404 || (data.msg||"").toLowerCase().includes("not found")) {
+      btn.classList.add("err"); btn.querySelector(".lbl").textContent = "✗ Bad API Key (server)";
+    } else if (resp.ok || data.code === 404 || (data.msg||"").toLowerCase().includes("not found")) {
       btn.classList.add("ok"); btn.querySelector(".lbl").textContent = "✓ API Connected";
     } else {
-      btn.classList.add("err"); btn.querySelector(".lbl").textContent = `✗ ${data.msg || resp.status}`;
+      btn.classList.add("err"); btn.querySelector(".lbl").textContent = `✗ ${data.msg || data.error || resp.status}`;
     }
   } catch (e) {
     btn.classList.add("err"); btn.querySelector(".lbl").textContent = `✗ ${e.message}`;
   }
   btn.disabled = false;
-  setTimeout(() => { btn.classList.remove("ok","err"); btn.querySelector(".lbl").textContent = "Test API Connection"; }, 4000);
+  setTimeout(() => { btn.classList.remove("ok","err"); btn.querySelector(".lbl").textContent = "Test API Connection"; refreshKeyChip(); }, 4000);
 }
 
 async function handleSubmit(e){
@@ -1168,9 +1154,7 @@ async function handleSubmit(e){
   const idea     = document.getElementById("f-idea").value.trim();
   const theme    = document.getElementById("f-theme").value.trim();
   const sections = document.getElementById("f-sections").value.trim();
-  const apiKey   = getApiKey({prompt: true});
   if (!idea || !theme || !sections) return;
-  if (!apiKey) { alert("Paste your kie.ai API key first — the orange button under \"Test API Connection\"."); return; }
 
   const session = buildSession({ idea, theme, sections });
   upsertSession(session);
@@ -1194,7 +1178,7 @@ async function handleSubmit(e){
       const idx = i++;
       jobs.push((async () => {
         await sleep(idx * DISPATCH_STAGGER_MS);
-        return generateImage(session, c, face, apiKey);
+        return generateImage(session, c, face);
       })());
     }
   }
@@ -1242,15 +1226,6 @@ function boot(){
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
   document.getElementById("test-btn").addEventListener("click", testApiConnection);
   document.getElementById("export-btn").addEventListener("click", exportCurrentSession);
-  document.getElementById("set-key-btn").addEventListener("click", () => {
-    getApiKey({prompt: true});
-    refreshKeyChip();
-  });
-  document.getElementById("clear-key-btn").addEventListener("click", () => {
-    if (!confirm("Forget the saved kie.ai key from this browser?")) return;
-    clearApiKey();
-    refreshKeyChip();
-  });
   refreshKeyChip();
   document.getElementById("clear-btn").addEventListener("click", () => {
     if (!confirm("Clear ALL sessions? This cannot be undone.")) return;

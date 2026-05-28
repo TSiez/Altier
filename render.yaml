@@ -66,3 +66,9 @@ services:
         sync: false
       - key: REDDIT_USERNAME
         sync: false
+      # kie.ai — the Concept Archive frontend proxies image generation
+      # through this service so the key never reaches the browser.
+      # Get a key at https://kie.ai/api-key and paste it in the Render
+      # dashboard. sync:false keeps the value out of the blueprint.
+      - key: KIE_API_KEY
+        sync: false
